@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="FitPlan">
+  <meta name="theme-color" content="#0a0a0f">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="assets/icons/icon-192.png">
+  <title>Glen's Fitness Plan</title>
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<div id="app">
+
+  <!-- ════════════════════ HOME ════════════════════ -->
+  <div class="screen active" id="screen-home">
+    <div class="scroll-body" id="home-body"></div>
+  </div>
+
+  <!-- ════════════════════ TRAIN ════════════════════ -->
+  <div class="screen" id="screen-train">
+    <div class="screen-header">
+      <div class="screen-title">Train 💪</div>
+      <div class="screen-sub">12-week strength + running plan</div>
+    </div>
+    <div class="scroll-body" id="train-body"></div>
+  </div>
+
+  <!-- ════════════════════ EAT ════════════════════ -->
+  <div class="screen" id="screen-eat">
+    <div class="screen-header">
+      <div class="screen-title">Eat 🥗</div>
+      <div class="screen-sub">2,350–2,500 kcal · 180–210 g protein</div>
+    </div>
+    <div class="scroll-body" id="eat-body"></div>
+  </div>
+
+  <!-- ════════════════════ MOVE ════════════════════ -->
+  <div class="screen" id="screen-move">
+    <div class="screen-header">
+      <div class="screen-title">Move 🧘</div>
+      <div class="screen-sub">Daily shoulder &amp; thoracic mobility</div>
+    </div>
+    <div class="scroll-body" id="move-body"></div>
+  </div>
+
+  <!-- ════════════════════ PROGRESS ════════════════════ -->
+  <div class="screen" id="screen-progress">
+    <div class="screen-header">
+      <div class="screen-title">Progress 📈</div>
+      <div class="screen-sub">95.8 kg → 89 kg · 12 weeks</div>
+    </div>
+    <div class="scroll-body" id="prog-body"></div>
+  </div>
+
+  <!-- ════════════════════ TAB BAR ════════════════════ -->
+  <nav id="tab-bar">
+    <button class="tab-btn active" data-tab="home">
+      <span class="tab-icon">🏠</span>
+      Home
+    </button>
+    <button class="tab-btn" data-tab="train">
+      <span class="tab-icon">💪</span>
+      Train
+    </button>
+    <button class="tab-btn" data-tab="eat">
+      <span class="tab-icon">🥗</span>
+      Eat
+    </button>
+    <button class="tab-btn" data-tab="move">
+      <span class="tab-icon">🧘</span>
+      Move
+    </button>
+    <button class="tab-btn" data-tab="progress">
+      <span class="tab-icon">📈</span>
+      Progress
+    </button>
+  </nav>
+
+</div><!-- #app -->
+
+<!-- ════════════════════ MOBILITY DRILL MODAL ════════════════════ -->
+<div class="modal-overlay" id="drill-modal">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="drill-modal-title"></div>
+    <div style="font-size:15px;color:var(--accent);font-weight:600;margin-bottom:6px" id="drill-modal-reps"></div>
+    <div style="font-size:14px;color:var(--text2);margin-bottom:16px;line-height:1.5" id="drill-modal-why"></div>
+
+    <div class="timer-display" id="timer-display">--:--</div>
+
+    <div class="timer-btns" style="margin-bottom:20px">
+      <button class="btn btn-ghost" id="timer-toggle" onclick="toggleTimer()">▶ Start</button>
+      <button class="btn btn-ghost" onclick="resetTimer()">↺ Reset</button>
+    </div>
+
+    <div style="display:flex;gap:10px">
+      <button class="btn" style="flex:1" onclick="markDrillDone(timerDrillIdx)">✅ Mark Done</button>
+      <button class="btn btn-ghost" style="flex:1" onclick="closeDrillModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/data.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
