@@ -1,5 +1,11 @@
 const CACHE_NAME = 'fitplan-v1';
-const URLS = ['/', '/index.html', '/css/app.css', '/js/data.js', '/js/app.js'];
+const URLS = [
+  '/glen-fitness-app/',
+  '/glen-fitness-app/index.html',
+  '/glen-fitness-app/css/app.css',
+  '/glen-fitness-app/js/data.js',
+  '/glen-fitness-app/js/app.js'
+];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE_NAME).then(c => c.addAll(URLS)));
