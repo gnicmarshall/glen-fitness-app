@@ -26,19 +26,29 @@
   --shadow:      0 4px 24px rgba(0,0,0,0.5);
 }
 
-html { height: 100%; }
+html, body {
+  height: 100%;
+  height: 100dvh;
+}
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', sans-serif;
   background: var(--bg);
   color: var(--text);
-  height: 100%;
   overflow: hidden;
+  position: fixed;
+  width: 100%;
   -webkit-tap-highlight-color: transparent;
   -webkit-font-smoothing: antialiased;
 }
 
 /* ─── Layout ────────────────────────────────────────────────────────────────── */
-#app { display: flex; flex-direction: column; height: 100%; }
+#app {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  height: 100dvh;
+  overflow: hidden;
+}
 
 .screen {
   display: none;
@@ -51,9 +61,10 @@ body {
 
 .scroll-body {
   flex: 1;
-  overflow-y: auto;
+  overflow-y: scroll; /* scroll not auto — fixes iOS momentum */
   -webkit-overflow-scrolling: touch;
-  padding: 16px 16px calc(var(--tab-h) + var(--safe-b) + 16px);
+  overscroll-behavior: contain;
+  padding: 16px 16px 20px;
 }
 
 /* ─── Tab Bar ────────────────────────────────────────────────────────────────── */
@@ -61,13 +72,12 @@ body {
   display: flex;
   height: calc(var(--tab-h) + var(--safe-b));
   padding-bottom: var(--safe-b);
-  background: rgba(13,13,22,0.92);
+  background: rgba(13,13,22,0.95);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border-top: 1px solid var(--border);
   flex-shrink: 0;
-  position: fixed;
-  bottom: 0; left: 0; right: 0;
+  /* Part of flex column — no position:fixed needed */
   z-index: 100;
 }
 
