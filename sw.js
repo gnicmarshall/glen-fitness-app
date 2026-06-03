@@ -1,10 +1,11 @@
-const CACHE_NAME = 'fitplan-v7';
+const CACHE_NAME = 'fitplan-v8';
 const URLS = [
   '/glen-fitness-app/',
   '/glen-fitness-app/index.html',
   '/glen-fitness-app/css/app.css',
   '/glen-fitness-app/js/data.js',
-  '/glen-fitness-app/js/app.js'
+  '/glen-fitness-app/js/app.js',
+  '/glen-fitness-app/js/cloud.js'
 ];
 
 self.addEventListener('install', e => {

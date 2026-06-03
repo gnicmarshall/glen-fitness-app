@@ -18,7 +18,7 @@ let state = store.get('fitplan_v2') || {
   restSec: 90,
 };
 if (state.restSec == null) state.restSec = 90;
-function save() { store.set('fitplan_v2', state); }
+function save() { state.updatedAt = Date.now(); store.set('fitplan_v2', state); if (window.cloudPush) window.cloudPush(); }
 
 /* ─── Workout-log model (per-set weight/reps) ─────────────────────────────────── */
 function parseSetCount(setsStr) { const m = String(setsStr).match(/\d+/); return m ? Math.max(1, parseInt(m[0])) : 3; }
@@ -133,6 +133,7 @@ function renderHome() {
   }
 
   document.getElementById('home-body').innerHTML = `
+    <div id="cloud-card"></div>
     <div class="hero">
       <div style="display:flex;align-items:flex-start;justify-content:space-between">
         <div>
@@ -215,6 +216,7 @@ function renderHome() {
       }).join('')}
     </div>
   `;
+  if (window.renderCloudCard) renderCloudCard();
 }
 
 /* ══════════════════════════════════════════════════════════════════════════════

@@ -260,6 +260,23 @@ body {
 .btn.sm     { padding: 8px 14px; font-size: 12.5px; }
 .btn.block  { width: 100%; }
 
+/* ─── Cloud sync card ───────────────────────────────────────────────────────── */
+.cloudrow {
+  display: flex; align-items: center; gap: 12px;
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--r); padding: 12px 14px; margin-bottom: 14px;
+  box-shadow: var(--shadow);
+}
+.cloudico {
+  flex-shrink: 0; width: 38px; height: 38px; border-radius: 11px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 19px; background: var(--bg2); color: var(--text3);
+}
+.cloudico.ok { background: rgba(16,185,129,0.12); color: var(--green); }
+.cloudtxt { flex: 1; min-width: 0; }
+.cloudnm { font-size: 14.5px; font-weight: 800; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cloudst { font-size: 12px; color: var(--text3); font-weight: 600; margin-top: 1px; }
+
 /* ─── Info strips ───────────────────────────────────────────────────────────── */
 .strip {
   border-radius: var(--r-sm); padding: 11px 13px;
