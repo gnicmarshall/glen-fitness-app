@@ -15,8 +15,29 @@ let state = store.get('fitplan_v2') || {
   workoutLog:  {},
   mobilityLog: {},
   mealTemplate: 'omnivore',
+  restSec: 90,
 };
+if (state.restSec == null) state.restSec = 90;
 function save() { store.set('fitplan_v2', state); }
+
+/* ─── Workout-log model (per-set weight/reps) ─────────────────────────────────── */
+function parseSetCount(setsStr) { const m = String(setsStr).match(/\d+/); return m ? Math.max(1, parseInt(m[0])) : 3; }
+function blankSets(ex) { return Array.from({length: parseSetCount(ex.sets)}, () => ({ w:'', r:'', done:false })); }
+function ensureSession(date, session) {
+  if (!state.workoutLog[date]) state.workoutLog[date] = {};
+  let s = state.workoutLog[date][session];
+  const exs = SESSIONS[session].exercises;
+  if (Array.isArray(s)) {                      // migrate old boolean-array format
+    s = { sets: exs.map((ex,i) => { const arr = blankSets(ex); if (s[i]) arr.forEach(x => x.done = true); return arr; }), finishedAt: null };
+    state.workoutLog[date][session] = s;
+  } else if (!s) {
+    s = { sets: exs.map(blankSets), finishedAt: null };
+    state.workoutLog[date][session] = s;
+  } else if (!s.sets) {
+    s.sets = exs.map(blankSets); s.finishedAt = s.finishedAt || null;
+  }
+  return s;
+}
 
 /* ─── Helpers ─────────────────────────────────────────────────────────────── */
 const today   = () => new Date().toISOString().split('T')[0];
@@ -221,47 +242,70 @@ function renderTrainContent() {
 
   if (trainTab === 'workout') {
     const d = today();
-    const log = state.workoutLog[d]?.[activeSession] || [];
     const sess = SESSIONS[activeSession];
-    const doneCount = log.filter(Boolean).length;
-    const total = sess.exercises.length;
+    const slog = ensureSession(d, activeSession);
+    const totalSets = slog.sets.reduce((n,a)=>n+a.length,0);
+    const doneSets  = slog.sets.reduce((n,a)=>n+a.filter(s=>s.done).length,0);
+    const volume    = slog.sets.reduce((n,a)=>n+a.reduce((m,s)=>m+(s.done?(parseFloat(s.w)||0)*(parseFloat(s.r)||0):0),0),0);
+    const rest = state.restSec||90;
+
     el.innerHTML = `
       <div class="seg">
         ${['A','B','C'].map(s=>`<button class="sbtn ${activeSession===s?'active':''}" onclick="setSession('${s}')">Session ${s}</button>`).join('')}
       </div>
-      <div class="card card-glow">
-        <div class="sbadge">⚡ ${sess.label} — ${sess.focus}</div>
-        <div style="margin-bottom:14px">
-          <div class="pbb"><div class="pbf" style="width:${doneCount/total*100}%;background:var(--grad-green)"></div></div>
-          <div style="font-size:12px;color:var(--text3);margin-top:5px;font-weight:600">${doneCount} / ${total} exercises done</div>
+
+      <div class="card">
+        <div class="sbadge">${sess.label} · ${sess.focus}</div>
+        <div class="restset">
+          <span class="restset-lbl">Rest between sets</span>
+          <div class="restset-opts">
+            ${[60,90,120,150].map(v=>`<button class="restpill ${rest===v?'active':''}" onclick="setRest(${v})">${v}s</button>`).join('')}
+          </div>
         </div>
-        ${sess.exercises.map((ex,i)=>{
-          const done = log[i]||false;
-          return `<div class="exrow">
-            <div class="exck ${done?'done':''}" onclick="toggleExercise('${d}','${activeSession}',${i})"></div>
-            <div class="ei">
-              <div class="exnm ${done?'done':''}">${ex.name}</div>
-              <div class="exst">${ex.sets} × ${ex.reps}</div>
-              <div class="exnt">${ex.note}</div>
-            </div>
-          </div>`;
-        }).join('')}
-        <div style="margin-top:14px;display:flex;gap:8px">
-          ${doneCount===total ? `<div style="flex:1;text-align:center;padding:10px;background:rgba(0,230,118,0.1);border-radius:12px;color:var(--green);font-weight:700">Session Complete! 🎉</div>` : ''}
-          <button class="btn ghost sm" onclick="clearSession('${d}','${activeSession}')">Reset</button>
-        </div>
+        <div class="pbb" style="margin:12px 0 5px"><div class="pbf" style="width:${totalSets?doneSets/totalSets*100:0}%;background:var(--grad-green)"></div></div>
+        <div style="font-size:12px;color:var(--text3);font-weight:600">${doneSets} / ${totalSets} sets done · ${Math.round(volume)} kg total volume</div>
       </div>
+
+      ${sess.exercises.map((ex,ei)=>{
+        const sets = slog.sets[ei]||[];
+        const exDone = sets.length>0 && sets.every(s=>s.done);
+        const q = encodeURIComponent(ex.name.split('/')[0].trim()+' proper form technique');
+        return `
+        <div class="card exblock">
+          <div class="exhead">
+            <div>
+              <div class="exnm2 ${exDone?'done':''}">${ex.name}</div>
+              <div class="extar">Target ${ex.sets} × ${ex.reps}${ex.note?` · ${ex.note}`:''}</div>
+            </div>
+            <a class="demobtn" href="https://www.youtube.com/results?search_query=${q}" target="_blank" rel="noopener">▶ Demo</a>
+          </div>
+          <div class="setgrid-head"><span>Set</span><span>kg</span><span>Reps</span><span>✓</span></div>
+          ${sets.map((s,si)=>`
+            <div class="setrow ${s.done?'done':''}">
+              <div class="setn">${si+1}</div>
+              <input class="setinp" type="number" inputmode="decimal" placeholder="–" value="${s.w}" oninput="setField('${d}','${activeSession}',${ei},${si},'w',this.value)">
+              <input class="setinp" type="number" inputmode="numeric" placeholder="–" value="${s.r}" oninput="setField('${d}','${activeSession}',${ei},${si},'r',this.value)">
+              <button class="setck ${s.done?'done':''}" onclick="toggleSet('${d}','${activeSession}',${ei},${si})"></button>
+            </div>`).join('')}
+          <button class="addset" onclick="addSet('${d}','${activeSession}',${ei})">+ Add set</button>
+        </div>`;
+      }).join('')}
+
+      <div class="card ${slog.finishedAt?'card-glow':''}">
+        ${slog.finishedAt
+          ? `<div style="text-align:center;padding:6px 0">
+               <div style="font-size:34px">🏆</div>
+               <div style="font-size:17px;font-weight:800;margin-top:4px">Workout logged</div>
+               <div style="font-size:13px;color:var(--text3);margin-top:3px">${doneSets} sets · ${Math.round(volume)} kg total volume</div>
+               <button class="btn ghost sm" style="margin-top:13px" onclick="reopenWorkout('${d}','${activeSession}')">Reopen session</button>
+             </div>`
+          : `<button class="btn block" onclick="finishWorkout('${d}','${activeSession}')">Finish &amp; Log Workout</button>
+             <button class="btn ghost block sm" style="margin-top:9px" onclick="clearSession('${d}','${activeSession}')">Reset session</button>`}
+      </div>
+
       <div class="card">
         <div class="lbl">Double Progression</div>
-        <div class="card-body" style="font-size:14px;color:var(--text2);line-height:1.6">Hit the <strong style="color:var(--cyan)">top of the rep range</strong> on all sets with solid form → add load next session. Target <strong style="color:var(--purple)">2–3 reps in reserve</strong> early, tightening to 1–2 RIR in harder weeks.</div>
-      </div>
-      <div class="card">
-        <div class="lbl">Shoulder-Safe Warm-up</div>
-        ${['5 min light bike/row','Thoracic extension on roller','Open books','Wall slides','Serratus drill','2 ramp-up sets for first press & row'].map((s,i)=>
-          `<div style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);font-size:14px;align-items:center">
-            <div style="width:24px;height:24px;border-radius:8px;background:var(--grad-purple);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;flex-shrink:0">${i+1}</div>
-            <span style="color:var(--text2)">${s}</span>
-          </div>`).join('')}
+        <div class="card-body" style="font-size:14px;line-height:1.6">Hit the <strong style="color:var(--orange)">top of the rep range</strong> on all sets with solid form → add load next session. Keep <strong style="color:var(--text)">2–3 reps in reserve</strong> early, tightening to 1–2 RIR in harder weeks.</div>
       </div>
     `;
 
@@ -385,16 +429,58 @@ function renderTrainContent() {
   }
 }
 
-function toggleExercise(date, session, idx) {
-  if (!state.workoutLog[date]) state.workoutLog[date]={};
-  if (!state.workoutLog[date][session]) state.workoutLog[date][session]=Array(SESSIONS[session].exercises.length).fill(false);
-  state.workoutLog[date][session][idx] = !state.workoutLog[date][session][idx];
-  save(); renderTrain();
+function setField(date, session, ei, si, k, v) {
+  const sl = ensureSession(date, session); sl.sets[ei][si][k] = v; save();
+}
+function toggleSet(date, session, ei, si) {
+  const sl = ensureSession(date, session); const set = sl.sets[ei][si];
+  set.done = !set.done; save();
+  if (set.done) startRest();
+  renderTrainContent();
+}
+function addSet(date, session, ei) {
+  const sl = ensureSession(date, session); const arr = sl.sets[ei]; const last = arr[arr.length-1];
+  arr.push({ w: last?last.w:'', r: last?last.r:'', done:false }); save(); renderTrainContent();
+}
+function setRest(v) { state.restSec = v; save(); renderTrainContent(); }
+function finishWorkout(date, session) {
+  const sl = ensureSession(date, session); sl.finishedAt = new Date().toISOString();
+  save(); skipRest(); renderTrainContent();
+  if (navigator.vibrate) navigator.vibrate(80);
+}
+function reopenWorkout(date, session) {
+  const sl = ensureSession(date, session); sl.finishedAt = null; save(); renderTrainContent();
 }
 function clearSession(date, session) {
-  if (state.workoutLog[date]) delete state.workoutLog[date][session];
-  save(); renderTrain();
+  if (!state.workoutLog[date]) state.workoutLog[date] = {};
+  state.workoutLog[date][session] = { sets: SESSIONS[session].exercises.map(blankSets), finishedAt: null };
+  save(); renderTrainContent();
 }
+
+/* ─── Rest timer (floating bar) ───────────────────────────────────────────────── */
+let restTimer = null, restRemain = 0;
+function startRest() {
+  restRemain = state.restSec || 90;
+  const bar = document.getElementById('rest-bar'); if (bar) bar.classList.add('show');
+  updateRestDisplay();
+  if (restTimer) clearInterval(restTimer);
+  restTimer = setInterval(() => {
+    restRemain--; updateRestDisplay();
+    if (restRemain <= 0) {
+      clearInterval(restTimer); restTimer = null;
+      if (navigator.vibrate) navigator.vibrate([300,120,300]);
+      const t = document.getElementById('rest-time'); if (t) t.textContent = 'Go! 💪';
+      setTimeout(hideRest, 1500);
+    }
+  }, 1000);
+}
+function updateRestDisplay() {
+  const m = Math.floor(Math.max(0,restRemain)/60), s = Math.max(0,restRemain)%60;
+  const el = document.getElementById('rest-time'); if (el) el.textContent = `${m}:${s.toString().padStart(2,'0')}`;
+}
+function addRest(n) { restRemain += n; updateRestDisplay(); }
+function skipRest() { if (restTimer) clearInterval(restTimer); restTimer = null; hideRest(); }
+function hideRest() { const bar = document.getElementById('rest-bar'); if (bar) bar.classList.remove('show'); }
 
 /* ══════════════════════════════════════════════════════════════════════════════
    EAT
@@ -638,9 +724,15 @@ function renderHistoryContent() {
           const ws = state.waistLog.find(w=>w.date===d);
           const entries = [];
 
-          if (wl) Object.entries(wl).forEach(([sess, exs])=>{
-            const done = exs.filter(Boolean).length;
-            entries.push({type:'gym', icon:'💪', title:`Session ${sess} — ${SESSIONS[sess].focus}`, meta:`${done}/${SESSIONS[sess].exercises.length} exercises completed`});
+          if (wl) Object.entries(wl).forEach(([sess, sdata])=>{
+            if (!SESSIONS[sess]) return;
+            let doneSets=0, totalSets=0, vol=0, fin=false;
+            if (Array.isArray(sdata)) { doneSets = sdata.filter(Boolean).length; totalSets = SESSIONS[sess].exercises.length; }
+            else if (sdata && sdata.sets) {
+              sdata.sets.forEach(a=>a.forEach(s=>{ totalSets++; if (s.done){ doneSets++; vol += (parseFloat(s.w)||0)*(parseFloat(s.r)||0); } }));
+              fin = !!sdata.finishedAt;
+            }
+            entries.push({type:'gym', icon:'💪', title:`Session ${sess} — ${SESSIONS[sess].focus}`, meta:`${doneSets}/${totalSets} sets${vol?` · ${Math.round(vol)} kg volume`:''}${fin?' · ✅ finished':''}`});
           });
 
           if (fl && fl.length) {
