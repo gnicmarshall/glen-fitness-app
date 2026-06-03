@@ -6,7 +6,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="FitPlan">
-  <meta name="theme-color" content="#0a0a0f">
+  <meta name="theme-color" content="#07070f">
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="assets/icons/icon-192.png">
   <title>Glen's Fitness Plan</title>
@@ -14,93 +14,84 @@
 </head>
 <body>
 <div id="app">
-  <!-- screens sit above tab bar in the flex column -->
 
-  <!-- ════════════════════ HOME ════════════════════ -->
+  <!-- HOME -->
   <div class="screen active" id="screen-home">
     <div class="scroll-body" id="home-body"></div>
   </div>
 
-  <!-- ════════════════════ TRAIN ════════════════════ -->
+  <!-- TRAIN -->
   <div class="screen" id="screen-train">
     <div class="screen-header">
       <div class="screen-title">Train 💪</div>
-      <div class="screen-sub">12-week strength + running plan</div>
+      <div class="screen-sub">Strength · Running · Mobility</div>
     </div>
     <div class="scroll-body" id="train-body"></div>
   </div>
 
-  <!-- ════════════════════ EAT ════════════════════ -->
+  <!-- EAT -->
   <div class="screen" id="screen-eat">
     <div class="screen-header">
-      <div class="screen-title">Eat 🥗</div>
-      <div class="screen-sub">2,350–2,500 kcal · 180–210 g protein</div>
+      <div class="screen-title">Fuel 🥗</div>
+      <div class="screen-sub">2,350–2,500 kcal · 180–210 g protein daily</div>
     </div>
     <div class="scroll-body" id="eat-body"></div>
   </div>
 
-  <!-- ════════════════════ MOVE ════════════════════ -->
-  <div class="screen" id="screen-move">
+  <!-- HISTORY -->
+  <div class="screen" id="screen-history">
     <div class="screen-header">
-      <div class="screen-title">Move 🧘</div>
-      <div class="screen-sub">Daily shoulder &amp; thoracic mobility</div>
+      <div class="screen-title">History 📋</div>
+      <div class="screen-sub">Every session, meal and measurement logged</div>
     </div>
-    <div class="scroll-body" id="move-body"></div>
+    <div class="scroll-body" id="history-body"></div>
   </div>
 
-  <!-- ════════════════════ PROGRESS ════════════════════ -->
+  <!-- PROGRESS -->
   <div class="screen" id="screen-progress">
     <div class="screen-header">
       <div class="screen-title">Progress 📈</div>
-      <div class="screen-sub">95.8 kg → 89 kg · 12 weeks</div>
+      <div class="screen-sub">95.8 kg → 89 kg · 12-week programme</div>
     </div>
     <div class="scroll-body" id="prog-body"></div>
   </div>
 
-  <!-- ════════════════════ TAB BAR ════════════════════ -->
+  <!-- TAB BAR -->
   <nav id="tab-bar">
     <button class="tab-btn active" data-tab="home">
-      <span class="tab-icon">🏠</span>
-      Home
+      <span class="tab-icon">🏠</span>Home
     </button>
     <button class="tab-btn" data-tab="train">
-      <span class="tab-icon">💪</span>
-      Train
+      <span class="tab-icon">💪</span>Train
     </button>
     <button class="tab-btn" data-tab="eat">
-      <span class="tab-icon">🥗</span>
-      Eat
+      <span class="tab-icon">🥗</span>Fuel
     </button>
-    <button class="tab-btn" data-tab="move">
-      <span class="tab-icon">🧘</span>
-      Move
+    <button class="tab-btn" data-tab="history">
+      <span class="tab-icon">📋</span>History
     </button>
     <button class="tab-btn" data-tab="progress">
-      <span class="tab-icon">📈</span>
-      Progress
+      <span class="tab-icon">📈</span>Progress
     </button>
   </nav>
 
 </div><!-- #app -->
 
-<!-- ════════════════════ MOBILITY DRILL MODAL ════════════════════ -->
+<!-- MOBILITY DRILL MODAL -->
 <div class="modal-overlay" id="drill-modal">
   <div class="modal-sheet">
     <div class="modal-handle"></div>
     <div class="modal-title" id="drill-modal-title"></div>
-    <div style="font-size:15px;color:var(--accent);font-weight:600;margin-bottom:6px" id="drill-modal-reps"></div>
-    <div style="font-size:14px;color:var(--text2);margin-bottom:16px;line-height:1.5" id="drill-modal-why"></div>
-
+    <div style="font-size:14px;color:var(--cyan);font-weight:700;margin-bottom:4px" id="drill-modal-reps"></div>
+    <div style="font-size:14px;color:var(--text2);margin-bottom:20px;line-height:1.6" id="drill-modal-why"></div>
     <div class="timer-display" id="timer-display">--:--</div>
-
-    <div class="timer-btns" style="margin-bottom:20px">
+    <div class="timer-btns">
       <button class="btn btn-ghost" id="timer-toggle" onclick="toggleTimer()">▶ Start</button>
       <button class="btn btn-ghost" onclick="resetTimer()">↺ Reset</button>
     </div>
-
     <div style="display:flex;gap:10px">
-      <button class="btn" style="flex:1" onclick="markDrillDone(timerDrillIdx)">✅ Mark Done</button>
-      <button class="btn btn-ghost" style="flex:1" onclick="closeDrillModal()">Close</button>
+      <button class="btn btn-block" onclick="markDrillDone(timerDrillIdx)">✅ Mark Done</button>
+      <button class="btn btn-ghost btn-block" onclick="closeDrillModal()">Close</button>
     </div>
   </div>
 </div>
