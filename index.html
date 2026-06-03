@@ -58,40 +58,30 @@
 
   <!-- TAB BAR -->
   <nav id="tab-bar">
-    <button class="tab-btn active" data-tab="home">
-      <span class="tab-icon">🏠</span>Home
-    </button>
-    <button class="tab-btn" data-tab="train">
-      <span class="tab-icon">💪</span>Train
-    </button>
-    <button class="tab-btn" data-tab="eat">
-      <span class="tab-icon">🥗</span>Fuel
-    </button>
-    <button class="tab-btn" data-tab="history">
-      <span class="tab-icon">📋</span>History
-    </button>
-    <button class="tab-btn" data-tab="progress">
-      <span class="tab-icon">📈</span>Progress
-    </button>
+    <button class="tab-btn active" data-tab="home"><span class="ti">🏠</span>Home</button>
+    <button class="tab-btn" data-tab="train"><span class="ti">💪</span>Train</button>
+    <button class="tab-btn" data-tab="eat"><span class="ti">🥗</span>Fuel</button>
+    <button class="tab-btn" data-tab="history"><span class="ti">📋</span>History</button>
+    <button class="tab-btn" data-tab="progress"><span class="ti">📈</span>Progress</button>
   </nav>
 
 </div><!-- #app -->
 
 <!-- MOBILITY DRILL MODAL -->
-<div class="modal-overlay" id="drill-modal">
-  <div class="modal-sheet">
-    <div class="modal-handle"></div>
-    <div class="modal-title" id="drill-modal-title"></div>
-    <div style="font-size:14px;color:var(--cyan);font-weight:700;margin-bottom:4px" id="drill-modal-reps"></div>
-    <div style="font-size:14px;color:var(--text2);margin-bottom:20px;line-height:1.6" id="drill-modal-why"></div>
-    <div class="timer-display" id="timer-display">--:--</div>
-    <div class="timer-btns">
-      <button class="btn btn-ghost" id="timer-toggle" onclick="toggleTimer()">▶ Start</button>
-      <button class="btn btn-ghost" onclick="resetTimer()">↺ Reset</button>
+<div class="mover" id="drill-modal">
+  <div class="msheet">
+    <div class="mhandle"></div>
+    <div class="mtit" id="drill-modal-title"></div>
+    <div style="font-size:13px;color:var(--cyan);font-weight:700;margin-bottom:4px" id="drill-modal-reps"></div>
+    <div style="font-size:13.5px;color:var(--text2);margin-bottom:16px;line-height:1.6" id="drill-modal-why"></div>
+    <div class="timerdisp" id="timer-display">--:--</div>
+    <div class="timerbtns">
+      <button class="btn ghost" id="timer-toggle" onclick="toggleTimer()">▶ Start</button>
+      <button class="btn ghost" onclick="resetTimer()">↺ Reset</button>
     </div>
-    <div style="display:flex;gap:10px">
-      <button class="btn btn-block" onclick="markDrillDone(timerDrillIdx)">✅ Mark Done</button>
-      <button class="btn btn-ghost btn-block" onclick="closeDrillModal()">Close</button>
+    <div style="display:flex;gap:9px">
+      <button class="btn block" onclick="markDrillDone(timerDrillIdx)">✅ Mark Done</button>
+      <button class="btn ghost block" onclick="closeDrillModal()">Close</button>
     </div>
   </div>
 </div>

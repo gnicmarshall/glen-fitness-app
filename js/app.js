@@ -4,6 +4,9 @@ const store = {
   set: (k, v) => localStorage.setItem(k, JSON.stringify(v)),
 };
 
+// Restore active tab when phone wakes from sleep
+let _activeTab = store.get('fitplan_tab') || 'home';
+
 /* ─── State ───────────────────────────────────────────────────────────────── */
 let state = store.get('fitplan_v2') || {
   weightLog:   [],
@@ -28,25 +31,25 @@ function weekNum() {
 }
 
 function ringHTML(pct, color, label, sub) {
-  const r = 36, c = 2*Math.PI*r, fill = Math.min(1, pct)*c;
+  const r = 34, c = 2*Math.PI*r, fill = Math.min(1, pct)*c;
   return `<div class="ring-wrap">
-    <svg class="ring-svg" width="88" height="88" viewBox="0 0 88 88">
-      <circle cx="44" cy="44" r="${r}" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="8"/>
-      <circle cx="44" cy="44" r="${r}" fill="none" stroke="${color}" stroke-width="8"
+    <svg class="ring-svg" width="84" height="84" viewBox="0 0 84 84">
+      <circle cx="42" cy="42" r="${r}" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="8"/>
+      <circle cx="42" cy="42" r="${r}" fill="none" stroke="${color}" stroke-width="8"
         stroke-dasharray="${fill} ${c}" stroke-linecap="round"/>
     </svg>
-    <div class="ring-center" style="color:${color}">${label}<small>${sub}</small></div>
+    <div class="ring-ctr" style="color:${color}">${label}<small>${sub}</small></div>
   </div>`;
 }
 
 function pbar(label, val, target, color, unit='g') {
   const pct = Math.min(100, Math.round(val/target*100));
-  return `<div class="pbar-wrap">
-    <div class="pbar-head">
-      <span class="pbar-label">${label}</span>
-      <span class="pbar-val" style="color:${color}">${val}${unit} <span style="color:var(--text3);font-weight:500">/ ${target}${unit}</span></span>
+  return `<div class="pb">
+    <div class="pbh">
+      <span class="pbl">${label}</span>
+      <span class="pbv" style="color:${color}">${val}${unit} <span style="color:var(--text3);font-weight:500">/ ${target}${unit}</span></span>
     </div>
-    <div class="pbar-bg"><div class="pbar-fill" style="width:${pct}%;background:${color}"></div></div>
+    <div class="pbb"><div class="pbf" style="width:${pct}%;background:${color}"></div></div>
   </div>`;
 }
 
@@ -56,6 +59,8 @@ function navigate(tab) {
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('screen-'+tab).classList.add('active');
   document.querySelector(`.tab-btn[data-tab="${tab}"]`).classList.add('active');
+  _activeTab = tab;
+  store.set('fitplan_tab', tab); // persist so sleep/wake restores here
   renders[tab]?.();
 }
 
@@ -79,7 +84,7 @@ function renderHome() {
   // Week dots
   const dots = Array.from({length:12},(_,i)=>{
     const w=i+1, cls=w<wk?'done':w===wk?'cur':w===9?'deload':'';
-    return `<div class="w-dot ${cls}">${w===9?'🔄':w}</div>`;
+    return `<div class="wdot ${cls}">${w===9?'🔄':w}</div>`;
   }).join('');
 
   // Today plan
@@ -89,112 +94,102 @@ function renderHome() {
       <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)">
         <div style="width:40px;height:40px;border-radius:12px;background:rgba(124,109,250,0.15);display:flex;align-items:center;justify-content:center;font-size:20px">💪</div>
         <div><div style="font-weight:700;font-size:15px">Gym Session ${plan.gym}</div><div style="font-size:13px;color:var(--text3)">${SESSIONS[plan.gym].focus}</div></div>
-        <button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="navigate('train')">Go</button>
+        <button class="btn ghost sm" style="margin-left:auto" onclick="navigate('train')">Go</button>
       </div>`;
     if (plan.run) todayHtml += `
       <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)">
         <div style="width:40px;height:40px;border-radius:12px;background:rgba(0,230,118,0.12);display:flex;align-items:center;justify-content:center;font-size:20px">🏃</div>
         <div><div style="font-weight:700;font-size:15px">${plan.run} Run</div><div style="font-size:13px;color:var(--text3)">${plan.note}</div></div>
-        <button class="btn btn-ghost btn-sm" style="margin-left:auto;color:var(--green);border-color:rgba(0,230,118,0.3)" onclick="navigate('train')">Go</button>
+        <button class="btn ghost sm" style="margin-left:auto;color:var(--green);border-color:rgba(0,230,118,0.3)" onclick="navigate('train')">Go</button>
       </div>`;
     todayHtml += `
       <div style="display:flex;align-items:center;gap:10px;padding:10px 0">
         <div style="width:40px;height:40px;border-radius:12px;background:rgba(255,107,53,0.1);display:flex;align-items:center;justify-content:center;font-size:20px">🧘</div>
         <div><div style="font-weight:700;font-size:15px">Mobility Routine</div><div style="font-size:13px;color:var(--text3)">8 drills · ~12 min</div></div>
-        <button class="btn btn-ghost btn-sm" style="margin-left:auto;color:var(--orange);border-color:rgba(255,107,53,0.3)" onclick="navigate('train')">Go</button>
+        <button class="btn ghost sm" style="margin-left:auto;color:var(--orange);border-color:rgba(255,107,53,0.3)" onclick="navigate('train')">Go</button>
       </div>`;
     if (!plan.gym && !plan.run) todayHtml = `<div style="padding:12px 0;color:var(--text2);font-size:15px">Rest day — walk, recover, prep meals 🛌</div>`;
   }
 
   document.getElementById('home-body').innerHTML = `
-    <!-- HERO -->
-    <div class="hero-card">
+    <div class="hero">
       <div style="display:flex;align-items:flex-start;justify-content:space-between">
         <div>
-          <div style="font-size:13px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Week ${wk} of 12</div>
-          <div style="font-size:32px;font-weight:900;letter-spacing:-1px">Hey Glen 👋</div>
-          <div style="font-size:14px;color:var(--text3);margin-top:4px">${dow} · ${fmtFull(d)}</div>
+          <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:5px">Week ${wk} of 12</div>
+          <div style="font-size:28px;font-weight:900;letter-spacing:-0.8px;line-height:1.1">Hey Glen 👋</div>
+          <div style="font-size:13px;color:var(--text3);margin-top:5px">${dow} · ${fmtFull(d)}</div>
         </div>
         <div style="text-align:right">
-          <div style="font-size:38px;font-weight:900;letter-spacing:-1.5px;color:var(--cyan)">${latestW}</div>
-          <div style="font-size:12px;color:var(--text3);font-weight:600;margin-top:2px">kg current</div>
-          ${parseFloat(lost) > 0 ? `<div style="font-size:13px;color:var(--green);font-weight:700;margin-top:2px">▼ ${lost} kg lost</div>` : ''}
+          <div style="font-size:36px;font-weight:900;letter-spacing:-1.5px;color:var(--cyan);line-height:1">${latestW}</div>
+          <div style="font-size:11px;color:var(--text3);font-weight:600;margin-top:3px;text-transform:uppercase;letter-spacing:0.4px">kg now</div>
+          ${parseFloat(lost)>0?`<div style="font-size:12px;color:var(--green);font-weight:700;margin-top:3px">▼ ${lost} kg lost</div>`:''}
         </div>
       </div>
-      <div class="week-dots">${dots}</div>
-      <div style="margin-top:14px">
-        <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text3);font-weight:600;margin-bottom:6px">
-          <span>To goal: ${toGo} kg</span><span>${pctDone}%</span>
+      <div class="wd">${dots}</div>
+      <div style="margin-top:12px">
+        <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text3);font-weight:600;margin-bottom:5px">
+          <span>${toGo} kg to go</span><span>${pctDone}%</span>
         </div>
-        <div class="pbar-bg" style="height:6px">
-          <div class="pbar-fill" style="width:${pctDone}%;background:linear-gradient(90deg,var(--purple),var(--cyan))"></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- TODAY'S PLAN -->
-    <div class="card">
-      <div class="card-label">Today's Plan</div>
-      ${todayHtml || '<div style="color:var(--text3);font-size:14px;padding:8px 0">No plan today — enjoy the rest 🛌</div>'}
-    </div>
-
-    <!-- QUICK STATS -->
-    <div class="stat-grid">
-      <div class="stat-card purple">
-        <div class="stat-value purple">${kcalToday || '—'}</div>
-        <div class="stat-unit">kcal today</div>
-        <div class="stat-change" style="color:var(--text3)">target ${t.kcal}</div>
-      </div>
-      <div class="stat-card cyan">
-        <div class="stat-value cyan">${protToday || '—'}<span style="font-size:18px">g</span></div>
-        <div class="stat-unit">protein today</div>
-        <div class="stat-change" style="color:var(--text3)">target ${t.protein}g</div>
-      </div>
-      <div class="stat-card green">
-        <div class="stat-value green">${toGo}</div>
-        <div class="stat-unit">kg to milestone</div>
-        <div class="stat-change pos">89 kg target</div>
-      </div>
-      <div class="stat-card orange">
-        <div class="stat-value orange">${wk}</div>
-        <div class="stat-unit">current week</div>
-        <div class="stat-change" style="color:var(--text3)">${weekInfo.intensity}</div>
-      </div>
-    </div>
-
-    <!-- WEEK FOCUS -->
-    <div class="card">
-      <div class="card-label">Week ${wk} Focus</div>
-      <div style="font-size:17px;font-weight:800;margin-bottom:6px">${weekInfo.gymFocus}</div>
-      <div style="font-size:14px;color:var(--text2);margin-bottom:10px">${weekInfo.runFocus}</div>
-      <div class="strip strip-purple" style="margin-bottom:0">${weekInfo.notes}</div>
-    </div>
-
-    <!-- CALORIES -->
-    <div class="card">
-      <div class="card-label">Today's Nutrition</div>
-      <div class="macro-ring-container">
-        ${ringHTML(Math.min(1,kcalToday/t.kcal), 'var(--orange)', Math.round(kcalToday/t.kcal*100)+'%', 'kcal')}
-        <div class="macro-labels">
-          ${pbar('Protein', protToday, t.protein, 'var(--purple)')}
-          ${pbar('Calories', kcalToday, t.kcal, 'var(--orange)', ' kcal')}
+        <div class="pbb">
+          <div class="pbf" style="width:${pctDone}%;background:linear-gradient(90deg,var(--purple),var(--cyan))"></div>
         </div>
       </div>
-      <button class="btn btn-ghost btn-sm" onclick="navigate('eat')">Log food →</button>
     </div>
 
-    <!-- SUPPLEMENTS -->
     <div class="card">
-      <div class="card-label">Daily Supplements</div>
+      <div class="lbl">Today's Plan</div>
+      ${todayHtml||'<div style="color:var(--text3);font-size:14px;padding:6px 0">Rest day — walk, recover, prep meals 🛌</div>'}
+    </div>
+
+    <div class="sg">
+      <div class="sc p">
+        <div class="sv p">${kcalToday||'0'}</div>
+        <div class="su">kcal today</div>
+        <div class="sm">target ${t.kcal}</div>
+      </div>
+      <div class="sc c">
+        <div class="sv c">${protToday||'0'}<span style="font-size:16px">g</span></div>
+        <div class="su">protein</div>
+        <div class="sm">target ${t.protein}g</div>
+      </div>
+      <div class="sc g">
+        <div class="sv g">${toGo}</div>
+        <div class="su">kg to goal</div>
+        <div class="sm" style="color:var(--green)">89 kg milestone</div>
+      </div>
+      <div class="sc o">
+        <div class="sv o">${wk}</div>
+        <div class="su">current week</div>
+        <div class="sm">${weekInfo.intensity}</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="lbl">Week ${wk} Focus</div>
+      <div style="font-size:16px;font-weight:800;margin-bottom:5px">${weekInfo.gymFocus}</div>
+      <div style="font-size:13.5px;color:var(--text2);margin-bottom:9px">${weekInfo.runFocus}</div>
+      <div class="strip p" style="margin-bottom:0">${weekInfo.notes}</div>
+    </div>
+
+    <div class="card">
+      <div class="lbl">Today's Nutrition</div>
+      <div class="mrc">
+        ${ringHTML(Math.min(1,kcalToday/t.kcal),'var(--orange)',Math.round(kcalToday/t.kcal*100)+'%','kcal')}
+        <div class="mrl">
+          ${pbar('Protein',protToday,t.protein,'var(--purple)')}
+          ${pbar('Calories',kcalToday,t.kcal,'var(--orange)',' kcal')}
+        </div>
+      </div>
+      <button class="btn ghost sm" onclick="navigate('eat')">Log food →</button>
+    </div>
+
+    <div class="card">
+      <div class="lbl">Daily Supplements</div>
       ${SUPPLEMENTS.map((s,i)=>{
         const icons=['🧪','🥛','☀️','🐟'];
-        const colors=['rgba(124,109,250,0.15)','rgba(0,212,255,0.1)','rgba(255,214,10,0.1)','rgba(0,230,118,0.1)'];
-        return `<div class="supp-row">
-          <div class="supp-icon" style="background:${colors[i]}">${icons[i]}</div>
-          <div class="supp-info">
-            <div class="supp-name">${s.name}</div>
-            <div class="supp-dose">${s.dose} · ${s.timing}</div>
-          </div>
+        const bgs=['rgba(139,127,255,0.12)','rgba(34,211,238,0.08)','rgba(251,191,36,0.1)','rgba(74,222,128,0.08)'];
+        return `<div class="suprow"><div class="supico" style="background:${bgs[i]}">${icons[i]}</div>
+          <div><div class="supnm">${s.name}</div><div class="supd">${s.dose} · ${s.timing}</div></div>
         </div>`;
       }).join('')}
     </div>
@@ -208,11 +203,11 @@ let trainTab = 'workout', activeSession = 'A';
 
 function renderTrain() {
   document.getElementById('train-body').innerHTML = `
-    <div class="seg-ctrl">
-      <button class="seg-btn ${trainTab==='workout'?'active':''}" onclick="setTrainTab('workout')">Workout</button>
-      <button class="seg-btn ${trainTab==='running'?'active':''}" onclick="setTrainTab('running')">Running</button>
-      <button class="seg-btn ${trainTab==='mobility'?'active':''}" onclick="setTrainTab('mobility')">Mobility</button>
-      <button class="seg-btn ${trainTab==='schedule'?'active':''}" onclick="setTrainTab('schedule')">Schedule</button>
+    <div class="seg">
+      <button class="sbtn ${trainTab==='workout'?'active':''}" onclick="setTrainTab('workout')">Workout</button>
+      <button class="sbtn ${trainTab==='running'?'active':''}" onclick="setTrainTab('running')">Running</button>
+      <button class="sbtn ${trainTab==='mobility'?'active':''}" onclick="setTrainTab('mobility')">Mobility</button>
+      <button class="sbtn ${trainTab==='schedule'?'active':''}" onclick="setTrainTab('schedule')">Schedule</button>
     </div>
     <div id="train-content"></div>
   `;
@@ -231,37 +226,37 @@ function renderTrainContent() {
     const doneCount = log.filter(Boolean).length;
     const total = sess.exercises.length;
     el.innerHTML = `
-      <div class="seg-ctrl">
-        ${['A','B','C'].map(s=>`<button class="seg-btn ${activeSession===s?'active':''}" onclick="setSession('${s}')">Session ${s}</button>`).join('')}
+      <div class="seg">
+        ${['A','B','C'].map(s=>`<button class="sbtn ${activeSession===s?'active':''}" onclick="setSession('${s}')">Session ${s}</button>`).join('')}
       </div>
       <div class="card card-glow">
-        <div class="session-badge">⚡ ${sess.label} — ${sess.focus}</div>
+        <div class="sbadge">⚡ ${sess.label} — ${sess.focus}</div>
         <div style="margin-bottom:14px">
-          <div class="pbar-bg"><div class="pbar-fill" style="width:${doneCount/total*100}%;background:var(--grad-green)"></div></div>
+          <div class="pbb"><div class="pbf" style="width:${doneCount/total*100}%;background:var(--grad-green)"></div></div>
           <div style="font-size:12px;color:var(--text3);margin-top:5px;font-weight:600">${doneCount} / ${total} exercises done</div>
         </div>
         ${sess.exercises.map((ex,i)=>{
           const done = log[i]||false;
-          return `<div class="exercise-row">
-            <div class="ex-check ${done?'done':''}" onclick="toggleExercise('${d}','${activeSession}',${i})"></div>
-            <div class="ex-info">
-              <div class="ex-name ${done?'done':''}">${ex.name}</div>
-              <div class="ex-sets">${ex.sets} × ${ex.reps}</div>
-              <div class="ex-note">${ex.note}</div>
+          return `<div class="exrow">
+            <div class="exck ${done?'done':''}" onclick="toggleExercise('${d}','${activeSession}',${i})"></div>
+            <div class="ei">
+              <div class="exnm ${done?'done':''}">${ex.name}</div>
+              <div class="exst">${ex.sets} × ${ex.reps}</div>
+              <div class="exnt">${ex.note}</div>
             </div>
           </div>`;
         }).join('')}
         <div style="margin-top:14px;display:flex;gap:8px">
           ${doneCount===total ? `<div style="flex:1;text-align:center;padding:10px;background:rgba(0,230,118,0.1);border-radius:12px;color:var(--green);font-weight:700">Session Complete! 🎉</div>` : ''}
-          <button class="btn btn-ghost btn-sm" onclick="clearSession('${d}','${activeSession}')">Reset</button>
+          <button class="btn ghost sm" onclick="clearSession('${d}','${activeSession}')">Reset</button>
         </div>
       </div>
       <div class="card">
-        <div class="card-label">Double Progression</div>
-        <div class="card-body">Hit the <strong style="color:var(--cyan)">top of the rep range</strong> on all sets with solid form → add load next session. Target <strong style="color:var(--purple)">2–3 reps in reserve</strong> early, tightening to 1–2 RIR in harder weeks.</div>
+        <div class="lbl">Double Progression</div>
+        <div class="card-body" style="font-size:14px;color:var(--text2);line-height:1.6">Hit the <strong style="color:var(--cyan)">top of the rep range</strong> on all sets with solid form → add load next session. Target <strong style="color:var(--purple)">2–3 reps in reserve</strong> early, tightening to 1–2 RIR in harder weeks.</div>
       </div>
       <div class="card">
-        <div class="card-label">Shoulder-Safe Warm-up</div>
+        <div class="lbl">Shoulder-Safe Warm-up</div>
         ${['5 min light bike/row','Thoracic extension on roller','Open books','Wall slides','Serratus drill','2 ramp-up sets for first press & row'].map((s,i)=>
           `<div style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);font-size:14px;align-items:center">
             <div style="width:24px;height:24px;border-radius:8px;background:var(--grad-purple);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;flex-shrink:0">${i+1}</div>
@@ -277,14 +272,14 @@ function renderTrainContent() {
     }) || RUNNING_PHASES[0];
     el.innerHTML = `
       <div class="card card-glow">
-        <div class="card-label">Current Phase — Week ${wk}</div>
+        <div class="lbl">Current Phase — Week ${wk}</div>
         <div style="margin-bottom:16px">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
             <div style="width:10px;height:10px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green)"></div>
             <span style="font-size:15px;font-weight:800">Easy Run</span>
           </div>
           <div style="font-size:15px;color:var(--text2);margin-bottom:8px">${phase.easyRun}</div>
-          <div class="strip strip-green" style="font-size:13px">Conversational pace — finish fresher than you started</div>
+          <div class="strip g" style="font-size:13px">Conversational pace — finish fresher than you started</div>
         </div>
         <div>
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
@@ -292,11 +287,11 @@ function renderTrainContent() {
             <span style="font-size:15px;font-weight:800">Quality Run</span>
           </div>
           <div style="font-size:15px;color:var(--text2);margin-bottom:8px">${phase.qualityRun}</div>
-          <div class="strip strip-orange" style="font-size:13px">Space 24h+ from heavy lower-body day</div>
+          <div class="strip o" style="font-size:13px">Space 24h+ from heavy lower-body day</div>
         </div>
       </div>
       <div class="card">
-        <div class="card-label">All Phases</div>
+        <div class="lbl">All Phases</div>
         ${RUNNING_PHASES.map(p=>`
           <div style="padding:10px 0;border-bottom:1px solid var(--border)">
             <div style="font-weight:800;font-size:14px;color:var(--cyan);margin-bottom:4px">Weeks ${p.weeks}</div>
@@ -304,7 +299,7 @@ function renderTrainContent() {
             <div style="font-size:13px;color:var(--orange);margin-top:2px">Quality: ${p.qualityRun}</div>
           </div>`).join('')}
       </div>
-      <div class="strip strip-orange">Drop intensity before dropping consistency if recovery is poor.</div>
+      <div class="strip o">Drop intensity before dropping consistency if recovery is poor.</div>
     `;
 
   } else if (trainTab === 'mobility') {
@@ -315,34 +310,34 @@ function renderTrainContent() {
       <div class="card ${pct===100?'card-glow':''}">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
           <div>
-            <div class="card-label">Daily Mobility</div>
+            <div class="lbl">Daily Mobility</div>
             <div style="font-size:22px;font-weight:900">${done.length} <span style="font-size:14px;color:var(--text3);font-weight:600">/ ${MOBILITY_DRILLS.length} done</span></div>
           </div>
           ${pct===100 ? '<div style="font-size:32px">🎯</div>' : ''}
         </div>
-        <div class="pbar-bg" style="margin-bottom:0">
-          <div class="pbar-fill" style="width:${pct}%;background:var(--grad-orange)"></div>
+        <div class="pbb" style="margin-bottom:0">
+          <div class="pbf" style="width:${pct}%;background:var(--grad-orange)"></div>
         </div>
       </div>
       <div class="card">
         ${MOBILITY_DRILLS.map((drill,i)=>{
           const isDone = done.includes(i);
           const icons=['🫁','🦴','📖','🚪','🧱','💪','🎯','🤲'];
-          return `<div class="drill-row" onclick="openDrill(${i})">
-            <div class="drill-icon ${isDone?'done':''}">${isDone?'✅':icons[i]}</div>
-            <div class="drill-info">
-              <div class="drill-name ${isDone?'done':''}">${drill.name}</div>
-              <div class="drill-reps">${drill.reps}</div>
+          return `<div class="drrow" onclick="openDrill(${i})">
+            <div class="drico ${isDone?'done':''}">${isDone?'✅':icons[i]}</div>
+            <div class="di">
+              <div class="drnm ${isDone?'done':''}">${drill.name}</div>
+              <div class="drrp">${drill.reps}</div>
             </div>
-            <div class="drill-timer">${formatSec(drill.timerSec)}</div>
+            <div class="drtm">${formatSec(drill.timerSec)}</div>
           </div>`;
         }).join('')}
         <div style="margin-top:12px">
-          <button class="btn btn-ghost btn-sm" onclick="resetMobility()">Reset today</button>
+          <button class="btn ghost sm" onclick="resetMobility()">Reset today</button>
         </div>
       </div>
       <div class="card">
-        <div class="card-label">Phase Priorities</div>
+        <div class="lbl">Phase Priorities</div>
         ${[
           {wk:'1–4',lbl:'Mobility Access',txt:'Thoracic work, light activation, controlled tempo'},
           {wk:'5–8',lbl:'Stability',txt:'Add load to wall slides, face pulls, carries'},
@@ -356,17 +351,17 @@ function renderTrainContent() {
             <div style="font-size:13px;color:var(--text2)">${p.txt}</div>
           </div>`).join('')}
       </div>
-      <div class="strip strip-orange">⚠️ Sharp pain, numbness, or neck symptoms → stop and see a physio.</div>
+      <div class="strip o">⚠️ Sharp pain, numbness, or neck symptoms → stop and see a physio.</div>
     `;
 
   } else {
     el.innerHTML = `
       <div class="card">
-        <div class="card-label">Weekly Blueprint</div>
+        <div class="lbl">Weekly Blueprint</div>
         ${WEEKLY_SCHEDULE.map(row=>`
-          <div class="sched-row">
-            <div class="sched-day">${row.day.slice(0,3)}</div>
-            <div class="sched-pills">
+          <div class="srow">
+            <div class="sday">${row.day.slice(0,3)}</div>
+            <div class="spills">
               ${row.gym?`<span class="pill pill-gym">💪 Session ${row.gym}</span>`:''}
               ${row.run?`<span class="pill pill-run">🏃 ${row.run}</span>`:''}
               ${!row.gym&&!row.run?`<span class="pill pill-rest">😴 Rest</span>`:''}
@@ -375,7 +370,7 @@ function renderTrainContent() {
           </div>`).join('')}
       </div>
       <div class="card">
-        <div class="card-label">12-Week Microcycle</div>
+        <div class="lbl">12-Week Microcycle</div>
         ${WEEK_PLAN.map(w=>`
           <div style="padding:9px 0;border-bottom:1px solid var(--border)">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
@@ -408,10 +403,10 @@ let eatTab = 'log';
 
 function renderEat() {
   document.getElementById('eat-body').innerHTML = `
-    <div class="seg-ctrl">
-      <button class="seg-btn ${eatTab==='log'?'active':''}" onclick="setEatTab('log')">Today</button>
-      <button class="seg-btn ${eatTab==='meals'?'active':''}" onclick="setEatTab('meals')">Meal Plans</button>
-      <button class="seg-btn ${eatTab==='targets'?'active':''}" onclick="setEatTab('targets')">Targets</button>
+    <div class="seg">
+      <button class="sbtn ${eatTab==='log'?'active':''}" onclick="setEatTab('log')">Today</button>
+      <button class="sbtn ${eatTab==='meals'?'active':''}" onclick="setEatTab('meals')">Meal Plans</button>
+      <button class="sbtn ${eatTab==='targets'?'active':''}" onclick="setEatTab('targets')">Targets</button>
     </div>
     <div id="eat-content"></div>
   `;
@@ -430,44 +425,44 @@ function renderEatContent() {
   if (eatTab==='log') {
     el.innerHTML = `
       <div class="card">
-        <div class="macro-ring-container">
+        <div class="mrc">
           ${ringHTML(Math.min(1,totalKcal/t.kcal),'var(--orange)',Math.round(totalKcal/t.kcal*100)+'%','kcal')}
-          <div class="macro-labels">
+          <div class="mrl">
             ${pbar('Protein', totalProt, t.protein, 'var(--purple)')}
             ${pbar('Calories', totalKcal, t.kcal, 'var(--orange)', ' kcal')}
           </div>
         </div>
-        <div class="kcal-bar">
-          <div><div class="kcal-num">${totalKcal}</div><div class="kcal-label">eaten</div></div>
+        <div class="kcalbar">
+          <div><div class="knum">${totalKcal}</div><div class="klbl">eaten</div></div>
           <div style="text-align:center"><div style="font-size:22px;color:var(--text3);font-weight:900">—</div></div>
-          <div style="text-align:center"><div class="kcal-num" style="color:var(--cyan)">${t.kcal}</div><div class="kcal-label">target</div></div>
-          <div style="text-align:center"><div class="kcal-num" style="color:var(--green);font-size:22px">${remaining}</div><div class="kcal-label">left</div></div>
+          <div style="text-align:center"><div class="knum" style="color:var(--cyan)">${t.kcal}</div><div class="klbl">target</div></div>
+          <div style="text-align:center"><div class="knum" style="color:var(--green);font-size:22px">${remaining}</div><div class="klbl">left</div></div>
         </div>
       </div>
       <div class="card">
-        <div class="card-label">Log Food</div>
-        <input class="log-input" id="food-name" placeholder="Food or meal name" type="text" style="width:100%;margin-bottom:8px">
+        <div class="lbl">Log Food</div>
+        <input class="inp" id="food-name" placeholder="Food or meal name" type="text" style="width:100%;margin-bottom:8px">
         <div style="display:flex;gap:8px;margin-bottom:10px">
-          <input class="log-input" id="food-kcal" placeholder="kcal" type="number" inputmode="decimal">
-          <input class="log-input" id="food-prot" placeholder="protein (g)" type="number" inputmode="decimal">
+          <input class="inp" id="food-kcal" placeholder="kcal" type="number" inputmode="decimal">
+          <input class="inp" id="food-prot" placeholder="protein (g)" type="number" inputmode="decimal">
         </div>
-        <button class="btn btn-block" onclick="logFood()">+ Add Food</button>
+        <button class="btn block" onclick="logFood()">+ Add Food</button>
       </div>
       ${foods.length ? `
       <div class="card">
-        <div class="card-label">${foods.length} Items Logged Today</div>
+        <div class="lbl">${foods.length} Items Logged Today</div>
         ${foods.map((f,i)=>`
-          <div class="food-entry">
-            <div class="food-name">${f.name}</div>
-            <div class="food-kcal">${f.kcal} kcal</div>
-            <div class="food-protein">${f.protein}g</div>
-            <div class="food-del" onclick="deleteFood(${i})">×</div>
+          <div class="fe">
+            <div class="fen">${f.name}</div>
+            <div class="fek">${f.kcal} kcal</div>
+            <div class="fep">${f.protein}g</div>
+            <div class="fed" onclick="deleteFood(${i})">×</div>
           </div>`).join('')}
       </div>` : ''}
       <div class="card">
-        <div class="card-label">Adjustment Rules</div>
-        <div class="strip strip-green">2-week avg <strong>under 0.25 kg/week</strong> → cut 100–150 kcal/day</div>
-        <div class="strip strip-orange" style="margin-top:6px">Dropping <strong>over 0.8 kg/week</strong> and gym sliding → add 100–150 kcal/day</div>
+        <div class="lbl">Adjustment Rules</div>
+        <div class="strip g">2-week avg <strong>under 0.25 kg/week</strong> → cut 100–150 kcal/day</div>
+        <div class="strip o" style="margin-top:6px">Dropping <strong>over 0.8 kg/week</strong> and gym sliding → add 100–150 kcal/day</div>
       </div>
     `;
 
@@ -475,10 +470,10 @@ function renderEatContent() {
     const tpls = {omnivore:'🥩 Omnivore', vegetarian:'🥗 Vegetarian', highProtein:'💪 High-Protein'};
     el.innerHTML = `
       <div style="display:flex;flex-wrap:wrap;margin-bottom:6px">
-        ${Object.entries(tpls).map(([k,v])=>`<span class="meal-pill ${state.mealTemplate===k?'active':''}" onclick="setTemplate('${k}')">${v}</span>`).join('')}
+        ${Object.entries(tpls).map(([k,v])=>`<span class="mpill ${state.mealTemplate===k?'active':''}" onclick="setTemplate('${k}')">${v}</span>`).join('')}
       </div>
       <div class="card">
-        <div class="card-label">${tpls[state.mealTemplate]}</div>
+        <div class="lbl">${tpls[state.mealTemplate]}</div>
         ${MEAL_TEMPLATES[state.mealTemplate].map(m=>`
           <div style="padding:11px 0;border-bottom:1px solid var(--border)">
             <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--purple);margin-bottom:5px">${m.meal}</div>
@@ -491,7 +486,7 @@ function renderEatContent() {
         </div>
       </div>
       <div class="card">
-        <div class="card-label">Recipe Bank</div>
+        <div class="lbl">Recipe Bank</div>
         ${[
           {e:'🍗',t:'Chicken & Roasted Pepper Bowl',b:'Roast chicken with paprika, garlic, lemon. Serve over rice with roasted peppers, broccoli, yoghurt-olive oil dressing. Batch-cookable.'},
           {e:'🦃',t:'Turkey Meatballs in Tomato Sauce',b:'5% turkey mince, oats, egg, garlic, parmesan. Bake then simmer in passata. Pasta + wilted spinach. No raw tomatoes.'},
@@ -509,26 +504,26 @@ function renderEatContent() {
   } else {
     el.innerHTML = `
       <div class="card">
-        <div class="card-label">Training Day</div>
+        <div class="lbl">Training Day</div>
         <div style="font-size:24px;font-weight:900;color:var(--orange);margin-bottom:12px">2,450–2,650 kcal</div>
         ${pbar('Protein', 195, 210, 'var(--purple)')}
         ${pbar('Carbohydrate', 260, 300, 'var(--cyan)')}
         ${pbar('Fat', 73, 80, 'var(--orange)')}
       </div>
       <div class="card">
-        <div class="card-label">Rest / Easy Day</div>
+        <div class="lbl">Rest / Easy Day</div>
         <div style="font-size:24px;font-weight:900;color:var(--cyan);margin-bottom:12px">2,200–2,350 kcal</div>
         ${pbar('Protein', 195, 210, 'var(--purple)')}
         ${pbar('Carbohydrate', 180, 220, 'var(--cyan)')}
         ${pbar('Fat', 78, 85, 'var(--orange)')}
       </div>
       <div class="card">
-        <div class="card-label">Protein Rules</div>
-        <div class="strip strip-purple">35–50 g per main meal · 3–5 feedings per day</div>
-        <div class="strip strip-green" style="margin-top:6px">25–40 g within 1–2 hours post-lift</div>
+        <div class="lbl">Protein Rules</div>
+        <div class="strip p">35–50 g per main meal · 3–5 feedings per day</div>
+        <div class="strip g" style="margin-top:6px">25–40 g within 1–2 hours post-lift</div>
       </div>
       <div class="card">
-        <div class="card-label">Heart Health (Cholesterol)</div>
+        <div class="lbl">Heart Health (Cholesterol)</div>
         <div style="font-size:14px;color:var(--text2);line-height:1.7">
           ✅ Olive oil, nuts, seeds, avocado<br>
           ✅ Oats, beans, lentils (soluble fibre)<br>
@@ -563,10 +558,10 @@ let histTab = 'log';
 
 function renderHistory() {
   document.getElementById('history-body').innerHTML = `
-    <div class="seg-ctrl">
-      <button class="seg-btn ${histTab==='log'?'active':''}" onclick="setHistTab('log')">Activity</button>
-      <button class="seg-btn ${histTab==='calendar'?'active':''}" onclick="setHistTab('calendar')">Calendar</button>
-      <button class="seg-btn ${histTab==='nutrition'?'active':''}" onclick="setHistTab('nutrition')">Nutrition</button>
+    <div class="seg">
+      <button class="sbtn ${histTab==='log'?'active':''}" onclick="setHistTab('log')">Activity</button>
+      <button class="sbtn ${histTab==='calendar'?'active':''}" onclick="setHistTab('calendar')">Calendar</button>
+      <button class="sbtn ${histTab==='nutrition'?'active':''}" onclick="setHistTab('nutrition')">Nutrition</button>
     </div>
     <div id="history-content"></div>
   `;
@@ -615,26 +610,26 @@ function renderHistoryContent() {
     const totalFoodDays = Object.keys(state.foodLog).filter(d=>state.foodLog[d].length>0).length;
 
     el.innerHTML = `
-      <div class="stat-grid" style="margin-bottom:12px">
-        <div class="stat-card purple">
-          <div class="stat-value purple">${streak}</div>
-          <div class="stat-unit">day streak 🔥</div>
+      <div class="sg" style="margin-bottom:12px">
+        <div class="sc p">
+          <div class="sv p">${streak}</div>
+          <div class="su">day streak 🔥</div>
         </div>
-        <div class="stat-card cyan">
-          <div class="stat-value cyan">${totalWorkouts}</div>
-          <div class="stat-unit">gym sessions</div>
+        <div class="sc c">
+          <div class="sv c">${totalWorkouts}</div>
+          <div class="su">gym sessions</div>
         </div>
-        <div class="stat-card orange">
-          <div class="stat-value orange">${totalMobDays}</div>
-          <div class="stat-unit">mobility days</div>
+        <div class="sc o">
+          <div class="sv o">${totalMobDays}</div>
+          <div class="su">mobility days</div>
         </div>
-        <div class="stat-card green">
-          <div class="stat-value green">${totalFoodDays}</div>
-          <div class="stat-unit">days logged</div>
+        <div class="sc g">
+          <div class="sv g">${totalFoodDays}</div>
+          <div class="su">days logged</div>
         </div>
       </div>
       <div class="card">
-        <div class="card-label">Activity Log</div>
+        <div class="lbl">Activity Log</div>
         ${sorted.map(d => {
           const wl = state.workoutLog[d];
           const ml = state.mobilityLog[d];
@@ -664,11 +659,11 @@ function renderHistoryContent() {
             <div style="margin-bottom:14px">
               <div style="font-size:12px;font-weight:800;color:var(--text3);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid var(--border)">${dayName(d)} ${fmtFull(d)}${d===today()?' · Today':''}</div>
               ${entries.map(e=>`
-                <div class="history-entry">
-                  <div class="history-dot ${e.type}">${e.icon}</div>
-                  <div class="history-info">
-                    <div class="history-title">${e.title}</div>
-                    <div class="history-meta">${e.meta}</div>
+                <div class="hentry">
+                  <div class="hdot ${e.type}">${e.icon}</div>
+                  <div class="hi">
+                    <div class="htit">${e.title}</div>
+                    <div class="hmet">${e.meta}</div>
                   </div>
                 </div>`).join('')}
             </div>`;
@@ -703,9 +698,9 @@ function renderHistoryContent() {
 
     el.innerHTML = `
       <div class="card">
-        <div class="card-label">Activity Heatmap · Last 5 Weeks</div>
-        <div class="cal-grid">
-          ${days.map(d=>`<div class="cal-day-label">${d}</div>`).join('')}
+        <div class="lbl">Activity Heatmap · Last 5 Weeks</div>
+        <div class="cal">
+          ${days.map(d=>`<div class="cal-lbl">${d}</div>`).join('')}
           ${cells.map(c=>`<div class="cal-cell ${c.cls}${c.isToday?' is-today':''}${c.future?' empty':''}">${c.day}</div>`).join('')}
         </div>
         <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:12px;font-size:12px;color:var(--text3)">
@@ -716,7 +711,7 @@ function renderHistoryContent() {
         </div>
       </div>
       <div class="card">
-        <div class="card-label">Weight History</div>
+        <div class="lbl">Weight History</div>
         <canvas id="hist-weight-chart" width="320" height="140" style="width:100%;border-radius:8px"></canvas>
         ${state.weightLog.length===0?'<div style="text-align:center;padding:20px;color:var(--text3);font-size:14px">No weight logs yet — log via Progress tab</div>':''}
         ${state.weightLog.slice(-7).reverse().map(w=>`
@@ -733,7 +728,7 @@ function renderHistoryContent() {
     const nutDates = Object.keys(state.foodLog).filter(d=>state.foodLog[d].length>0).sort((a,b)=>b.localeCompare(a));
     el.innerHTML = `
       <div class="card">
-        <div class="card-label">Nutrition History</div>
+        <div class="lbl">Nutrition History</div>
         ${nutDates.length===0?'<div style="text-align:center;padding:20px;color:var(--text3);font-size:14px">No nutrition logs yet — log food via Fuel tab</div>':''}
         ${nutDates.map(d=>{
           const foods = state.foodLog[d];
@@ -753,8 +748,8 @@ function renderHistoryContent() {
                   <div style="font-size:13px;color:var(--purple);font-weight:700">${prot}g protein</div>
                 </div>
               </div>
-              <div class="pbar-bg" style="height:5px">
-                <div class="pbar-fill" style="width:${pct}%;background:${pct>=90?'var(--green)':pct>=70?'var(--orange)':'var(--red)'}"></div>
+              <div class="pbb" style="height:5px">
+                <div class="pbf" style="width:${pct}%;background:${pct>=90?'var(--green)':pct>=70?'var(--orange)':'var(--red)'}"></div>
               </div>
             </div>`;
         }).join('')}
@@ -777,10 +772,10 @@ let progTab = 'weight';
 
 function renderProgress() {
   document.getElementById('prog-body').innerHTML = `
-    <div class="seg-ctrl">
-      <button class="seg-btn ${progTab==='weight'?'active':''}" onclick="setProgTab('weight')">Weight</button>
-      <button class="seg-btn ${progTab==='waist'?'active':''}" onclick="setProgTab('waist')">Waist</button>
-      <button class="seg-btn ${progTab==='dna'?'active':''}" onclick="setProgTab('dna')">DNA Insights</button>
+    <div class="seg">
+      <button class="sbtn ${progTab==='weight'?'active':''}" onclick="setProgTab('weight')">Weight</button>
+      <button class="sbtn ${progTab==='waist'?'active':''}" onclick="setProgTab('waist')">Waist</button>
+      <button class="sbtn ${progTab==='dna'?'active':''}" onclick="setProgTab('dna')">DNA Insights</button>
     </div>
     <div id="prog-content"></div>
   `;
@@ -796,21 +791,21 @@ function renderProgContent() {
     const latest = wl.length ? wl[wl.length-1].kg : PROFILE.startWeightKg;
     const avg7 = wl.length>=7 ? (wl.slice(-7).reduce((s,w)=>s+w.kg,0)/7).toFixed(1) : latest;
     el.innerHTML = `
-      <div class="stat-grid">
-        <div class="stat-card cyan"><div class="stat-value cyan">${latest}</div><div class="stat-unit">kg current</div></div>
-        <div class="stat-card purple"><div class="stat-value purple">${avg7}</div><div class="stat-unit">7-day avg</div></div>
-        <div class="stat-card green"><div class="stat-value green">${(PROFILE.startWeightKg-latest).toFixed(1)}</div><div class="stat-unit">kg lost</div></div>
-        <div class="stat-card orange"><div class="stat-value orange">${Math.max(0,latest-PROFILE.targetWeightKg).toFixed(1)}</div><div class="stat-unit">kg to 89 kg</div></div>
+      <div class="sg">
+        <div class="sc c"><div class="sv c">${latest}</div><div class="su">kg current</div></div>
+        <div class="sc p"><div class="sv p">${avg7}</div><div class="su">7-day avg</div></div>
+        <div class="sc g"><div class="sv g">${(PROFILE.startWeightKg-latest).toFixed(1)}</div><div class="su">kg lost</div></div>
+        <div class="sc o"><div class="sv o">${Math.max(0,latest-PROFILE.targetWeightKg).toFixed(1)}</div><div class="su">kg to 89 kg</div></div>
       </div>
       <div class="card">
-        <div class="card-label">Log Today's Weight</div>
-        <div class="log-form">
-          <input class="log-input" id="weight-input" placeholder="${latest} kg" type="number" inputmode="decimal" step="0.1">
+        <div class="lbl">Log Today's Weight</div>
+        <div class="inp-row">
+          <input class="inp" id="weight-input" placeholder="${latest} kg" type="number" inputmode="decimal" step="0.1">
           <button class="btn" onclick="logWeight()">Log</button>
         </div>
       </div>
       <div class="card">
-        <div class="card-label">Weight Trend</div>
+        <div class="lbl">Weight Trend</div>
         <canvas id="weight-chart" width="320" height="150" style="width:100%;border-radius:8px;margin-bottom:12px"></canvas>
         ${wl.slice(-10).reverse().map(w=>`
           <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border);font-size:14px">
@@ -820,7 +815,7 @@ function renderProgContent() {
         ${wl.length===0?'<div style="text-align:center;padding:16px;color:var(--text3)">Log your first weigh-in above</div>':''}
       </div>
       <div class="card">
-        <div class="card-label">Milestones</div>
+        <div class="lbl">Milestones</div>
         ${[
           {kg:95.8,label:'Start weight',note:PROFILE.startDate},
           {kg:93,  label:'Early momentum'},
@@ -830,10 +825,10 @@ function renderProgContent() {
           {kg:83.6,label:'~12% body fat (lean mass held)'},
         ].map(m=>{
           const reached = latest <= m.kg;
-          return `<div class="milestone-row">
+          return `<div class="msrow">
             <div class="ms-check">${reached?'✅':'⬜'}</div>
-            <div class="ms-info"><div class="ms-label ${reached?'done':''}">${m.label}</div>${m.note?`<div style="font-size:11px;color:var(--text3)">${fmt(m.note)}</div>`:''}</div>
-            <div class="ms-kg ${reached?'done':''}">${m.kg}</div>
+            <div class="ms-info"><div class="mslbl ${reached?'done':''}">${m.label}</div>${m.note?`<div style="font-size:11px;color:var(--text3)">${fmt(m.note)}</div>`:''}</div>
+            <div class="mskg ${reached?'done':''}">${m.kg}</div>
           </div>`;
         }).join('')}
       </div>
@@ -844,22 +839,22 @@ function renderProgContent() {
     const wl = state.waistLog;
     const latest = wl.length ? wl[wl.length-1].cm : PROFILE.startWaistCm;
     el.innerHTML = `
-      <div class="stat-grid">
-        <div class="stat-card cyan"><div class="stat-value cyan">${latest}</div><div class="stat-unit">cm current</div></div>
-        <div class="stat-card purple"><div class="stat-value purple">${PROFILE.startWaistCm}</div><div class="stat-unit">cm start</div></div>
-        <div class="stat-card green"><div class="stat-value green">${(PROFILE.startWaistCm-latest).toFixed(1)}</div><div class="stat-unit">cm lost</div></div>
-        <div class="stat-card orange"><div class="stat-value orange">4–8</div><div class="stat-unit">cm 12wk target</div></div>
+      <div class="sg">
+        <div class="sc c"><div class="sv c">${latest}</div><div class="su">cm current</div></div>
+        <div class="sc p"><div class="sv p">${PROFILE.startWaistCm}</div><div class="su">cm start</div></div>
+        <div class="sc g"><div class="sv g">${(PROFILE.startWaistCm-latest).toFixed(1)}</div><div class="su">cm lost</div></div>
+        <div class="sc o"><div class="sv o">4–8</div><div class="su">cm 12wk target</div></div>
       </div>
       <div class="card">
-        <div class="card-label">Log Waist (Weekly)</div>
-        <div class="log-form">
-          <input class="log-input" id="waist-input" placeholder="${latest} cm" type="number" inputmode="decimal" step="0.5">
+        <div class="lbl">Log Waist (Weekly)</div>
+        <div class="inp-row">
+          <input class="inp" id="waist-input" placeholder="${latest} cm" type="number" inputmode="decimal" step="0.5">
           <button class="btn" onclick="logWaist()">Log</button>
         </div>
-        <div class="strip strip-orange" style="margin-top:10px;font-size:13px">Measure at navel, relaxed. Same time weekly.</div>
+        <div class="strip o" style="margin-top:10px;font-size:13px">Measure at navel, relaxed. Same time weekly.</div>
       </div>
       <div class="card">
-        <div class="card-label">Waist Trend</div>
+        <div class="lbl">Waist Trend</div>
         <canvas id="waist-chart" width="320" height="150" style="width:100%;border-radius:8px;margin-bottom:12px"></canvas>
         ${wl.slice(-8).reverse().map(w=>`
           <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border);font-size:14px">
@@ -868,26 +863,26 @@ function renderProgContent() {
           </div>`).join('')}
         ${wl.length===0?'<div style="text-align:center;padding:16px;color:var(--text3)">Log your first waist measurement above</div>':''}
       </div>
-      <div class="strip strip-purple">Scale stalls but waist falls + lifts hold? → Recomp happening. Don't panic.</div>
-      <div class="strip strip-orange" style="margin-top:-4px">Weight drops fast but waist static + gym sliding? → Deficit too deep. Add 100–150 kcal.</div>
+      <div class="strip p">Scale stalls but waist falls + lifts hold? → Recomp happening. Don't panic.</div>
+      <div class="strip o" style="margin-top:-4px">Weight drops fast but waist static + gym sliding? → Deficit too deep. Add 100–150 kcal.</div>
     `;
     drawWaistChart();
 
   } else {
     el.innerHTML = `
       <div class="card">
-        <div class="card-label">About Your Vitl DNA Report</div>
-        <div class="card-body" style="margin-bottom:10px">Your test covers nutrition, fitness, caffeine/sleep & vitamin traits. Use the conditional rules below based on your actual trait results.</div>
-        <div class="strip strip-cyan">DNA markers fine-tune the programme — calories, protein, training & sleep explain far more of your outcome than any single SNP.</div>
+        <div class="lbl">About Your Vitl DNA Report</div>
+        <div class="card-body" style="font-size:14px;color:var(--text2);line-height:1.6" style="margin-bottom:10px">Your test covers nutrition, fitness, caffeine/sleep & vitamin traits. Use the conditional rules below based on your actual trait results.</div>
+        <div class="strip c">DNA markers fine-tune the programme — calories, protein, training & sleep explain far more of your outcome than any single SNP.</div>
       </div>
       ${DNA_INSIGHTS.map(d=>`
-        <div class="dna-card">
-          <div class="dna-header">
-            <div class="dna-icon">${d.icon}</div>
-            <div><div class="dna-title">${d.trait}</div><div class="dna-marker">${d.marker}</div></div>
+        <div class="dna-c">
+          <div class="dna-h">
+            <div class="dna-i">${d.icon}</div>
+            <div><div class="dna-t">${d.trait}</div><div class="dna-m">${d.marker}</div></div>
           </div>
           ${Object.entries(d).filter(([k])=>!['trait','marker','icon'].includes(k)).map(([k,v])=>`
-            <div class="dna-option">
+            <div class="dna-o">
               <strong>${k.charAt(0).toUpperCase()+k.slice(1).replace(/([A-Z])/g,' $1')} →</strong>${v}
             </div>`).join('')}
         </div>`).join('')}
@@ -1032,5 +1027,14 @@ const renders = { home:renderHome, train:renderTrain, eat:renderEat, history:ren
 window.addEventListener('DOMContentLoaded', () => {
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('/glen-fitness-app/sw.js').catch(()=>{});
   document.querySelectorAll('.tab-btn').forEach(btn=>btn.addEventListener('click',()=>navigate(btn.dataset.tab)));
-  navigate('home');
+
+  // Restore last tab (survives sleep/wake)
+  navigate(_activeTab);
+
+  // Also re-render on page visibility change (wake from sleep)
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      renders[_activeTab]?.();
+    }
+  });
 });
