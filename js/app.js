@@ -34,7 +34,7 @@ function ringHTML(pct, color, label, sub) {
   const r = 34, c = 2*Math.PI*r, fill = Math.min(1, pct)*c;
   return `<div class="ring-wrap">
     <svg class="ring-svg" width="84" height="84" viewBox="0 0 84 84">
-      <circle cx="42" cy="42" r="${r}" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="8"/>
+      <circle cx="42" cy="42" r="${r}" fill="none" stroke="rgba(18,22,40,0.07)" stroke-width="8"/>
       <circle cx="42" cy="42" r="${r}" fill="none" stroke="${color}" stroke-width="8"
         stroke-dasharray="${fill} ${c}" stroke-linecap="round"/>
     </svg>
@@ -92,7 +92,7 @@ function renderHome() {
   if (plan) {
     if (plan.gym) todayHtml += `
       <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)">
-        <div style="width:40px;height:40px;border-radius:12px;background:rgba(124,109,250,0.15);display:flex;align-items:center;justify-content:center;font-size:20px">💪</div>
+        <div style="width:40px;height:40px;border-radius:12px;background:rgba(14,165,233,0.12);display:flex;align-items:center;justify-content:center;font-size:20px">💪</div>
         <div><div style="font-weight:700;font-size:15px">Gym Session ${plan.gym}</div><div style="font-size:13px;color:var(--text3)">${SESSIONS[plan.gym].focus}</div></div>
         <button class="btn ghost sm" style="margin-left:auto" onclick="navigate('train')">Go</button>
       </div>`;
@@ -910,15 +910,15 @@ function drawLineChart(id, data, color, startVal) {
   // Grid lines
   [0,0.5,1].forEach(f=>{
     const y=pad.t+ph*(1-f), v=(min+f*(max-min)).toFixed(1);
-    ctx.beginPath(); ctx.strokeStyle='rgba(255,255,255,0.06)'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.strokeStyle='rgba(18,22,40,0.07)'; ctx.lineWidth=1;
     ctx.moveTo(pad.l,y); ctx.lineTo(w-pad.r,y); ctx.stroke();
-    ctx.fillStyle='rgba(255,255,255,0.25)'; ctx.font=`bold ${10*dpr/dpr}px -apple-system`;
+    ctx.fillStyle='rgba(18,22,40,0.32)'; ctx.font=`bold ${10*dpr/dpr}px -apple-system`;
     ctx.fillText(v, 2, y+4);
   });
 
   // Gradient fill
   const grad = ctx.createLinearGradient(0,pad.t,0,h-pad.b);
-  const col = color.startsWith('var(') ? (color==='var(--cyan)'?'#00d4ff':color==='var(--green)'?'#00e676':'#7c6dfa') : color;
+  const col = color.startsWith('var(') ? (color==='var(--cyan)'?'#0ea5e9':color==='var(--green)'?'#10b981':'#3b66f5') : color;
   grad.addColorStop(0, col+'55'); grad.addColorStop(1, col+'00');
   ctx.beginPath(); ctx.moveTo(px(0),py(vals[0]));
   vals.forEach((v,i)=>i>0&&ctx.lineTo(px(i),py(v)));
@@ -934,7 +934,7 @@ function drawLineChart(id, data, color, startVal) {
   vals.forEach((v,i)=>{
     ctx.beginPath(); ctx.arc(px(i),py(v),4,0,Math.PI*2);
     ctx.fillStyle=col; ctx.fill();
-    ctx.strokeStyle='#07070f'; ctx.lineWidth=2; ctx.stroke();
+    ctx.strokeStyle='#ffffff'; ctx.lineWidth=2; ctx.stroke();
   });
 }
 

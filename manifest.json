@@ -6,8 +6,8 @@
   "scope": "/glen-fitness-app/",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#0a0a0f",
-  "theme_color": "#6c63ff",
+  "background_color": "#f1f3f7",
+  "theme_color": "#ff6b35",
   "icons": [
     {
       "src": "assets/icons/icon-192.png",
