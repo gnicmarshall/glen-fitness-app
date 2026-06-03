@@ -726,7 +726,14 @@ function renderHistoryContent() {
   } else {
     // Nutrition history
     const nutDates = Object.keys(state.foodLog).filter(d=>state.foodLog[d].length>0).sort((a,b)=>b.localeCompare(a));
+    const tt = NUTRITION_TARGETS.trainingDay;
+    const last14 = nutDates.slice(0,14).reverse();
     el.innerHTML = `
+      ${last14.length>=2?`
+      <div class="card">
+        <div class="lbl">Calories · Last ${last14.length} Logged Days</div>
+        <canvas id="nut-bar-chart" width="320" height="150" style="width:100%"></canvas>
+      </div>`:''}
       <div class="card">
         <div class="lbl">Nutrition History</div>
         ${nutDates.length===0?'<div style="text-align:center;padding:20px;color:var(--text3);font-size:14px">No nutrition logs yet — log food via Fuel tab</div>':''}
@@ -755,6 +762,15 @@ function renderHistoryContent() {
         }).join('')}
       </div>
     `;
+    if (last14.length>=2) {
+      const bars = last14.map(d=>{
+        const k = state.foodLog[d].reduce((s,f)=>s+f.kcal,0);
+        const p = k/tt.kcal;
+        const col = p>1.18?'#ef4444':p>=0.9?'#10b981':p>=0.5?'#ff6b35':'#cbd2de';
+        return { label: dayName(d)[0], val: k, color: col };
+      });
+      drawBarChart('nut-bar-chart', bars, '#ff6b35', tt.kcal);
+    }
   }
 }
 
@@ -790,12 +806,33 @@ function renderProgContent() {
     const wl = state.weightLog;
     const latest = wl.length ? wl[wl.length-1].kg : PROFILE.startWeightKg;
     const avg7 = wl.length>=7 ? (wl.slice(-7).reduce((s,w)=>s+w.kg,0)/7).toFixed(1) : latest;
+    const lostKg = PROFILE.startWeightKg - latest;
+    const wkEl = Math.max(1, weekNum());
+    const rate = lostKg / wkEl;
+    const needRate = (PROFILE.startWeightKg - PROFILE.targetWeightKg) / 12;
+    const ratio = needRate ? rate/needRate : 0;
+    const pace = wl.length===0 ? {t:'Log a weigh-in to start tracking', c:'var(--text3)', e:'📍'}
+               : ratio>=1.05 ? {t:'Ahead of schedule', c:'var(--green)', e:'🚀'}
+               : ratio>=0.85 ? {t:'On track for 89 kg', c:'var(--green)', e:'🎯'}
+               : ratio>0      ? {t:'Slightly behind pace', c:'var(--orange)', e:'⚡'}
+               : {t:'No change logged yet', c:'var(--text3)', e:'📍'};
     el.innerHTML = `
       <div class="sg">
         <div class="sc c"><div class="sv c">${latest}</div><div class="su">kg current</div></div>
         <div class="sc p"><div class="sv p">${avg7}</div><div class="su">7-day avg</div></div>
-        <div class="sc g"><div class="sv g">${(PROFILE.startWeightKg-latest).toFixed(1)}</div><div class="su">kg lost</div></div>
+        <div class="sc g"><div class="sv g">${lostKg.toFixed(1)}</div><div class="su">kg lost</div></div>
         <div class="sc o"><div class="sv o">${Math.max(0,latest-PROFILE.targetWeightKg).toFixed(1)}</div><div class="su">kg to 89 kg</div></div>
+      </div>
+      <div class="card">
+        <div class="lbl">Pace to Goal</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:11px">
+          <div>
+            <div style="font-size:17px;font-weight:800;color:${pace.c};letter-spacing:-0.3px">${pace.t}</div>
+            <div style="font-size:12.5px;color:var(--text3);margin-top:3px">${rate.toFixed(2)} kg/wk · target ~${needRate.toFixed(2)} kg/wk</div>
+          </div>
+          <div style="font-size:26px">${pace.e}</div>
+        </div>
+        <div class="pbb"><div class="pbf" style="width:${Math.min(100,Math.max(0,Math.round(ratio*100)))}%;background:${pace.c}"></div></div>
       </div>
       <div class="card">
         <div class="lbl">Log Today's Weight</div>
@@ -891,7 +928,7 @@ function renderProgContent() {
 }
 
 /* ─── Chart drawing ───────────────────────────────────────────────────────── */
-function drawLineChart(id, data, color, startVal) {
+function drawLineChart(id, data, color, startVal, goalVal) {
   const canvas = document.getElementById(id);
   if (!canvas) return;
   const dpr = window.devicePixelRatio||1;
@@ -901,7 +938,8 @@ function drawLineChart(id, data, color, startVal) {
 
   const vals = [startVal, ...data.map(d=>d.val)];
   if (vals.length < 2) return;
-  const min = Math.min(...vals)-0.5, max = Math.max(...vals)+0.5;
+  const allV = goalVal!=null ? [...vals, goalVal] : vals;
+  const min = Math.min(...allV)-0.5, max = Math.max(...allV)+0.5;
   const pad = {t:16,b:24,l:36,r:10};
   const pw = w-pad.l-pad.r, ph = h-pad.t-pad.b;
   const px = i => pad.l + (i/(vals.length-1))*pw;
@@ -915,6 +953,18 @@ function drawLineChart(id, data, color, startVal) {
     ctx.fillStyle='rgba(18,22,40,0.32)'; ctx.font=`bold ${10*dpr/dpr}px -apple-system`;
     ctx.fillText(v, 2, y+4);
   });
+
+  // Goal line (dashed)
+  if (goalVal!=null) {
+    const gy = py(goalVal);
+    ctx.save();
+    ctx.setLineDash([5,4]); ctx.strokeStyle='rgba(16,185,129,0.75)'; ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.moveTo(pad.l,gy); ctx.lineTo(w-pad.r,gy); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle='#059669'; ctx.font='bold 9px -apple-system';
+    ctx.fillText('goal '+goalVal, pad.l+3, gy-4);
+    ctx.restore();
+  }
 
   // Gradient fill
   const grad = ctx.createLinearGradient(0,pad.t,0,h-pad.b);
@@ -938,8 +988,53 @@ function drawLineChart(id, data, color, startVal) {
   });
 }
 
-function drawWeightChart() { drawLineChart('weight-chart', state.weightLog.map(w=>({val:w.kg})), 'var(--cyan)', PROFILE.startWeightKg); }
-function drawWaistChart()  { drawLineChart('waist-chart',  state.waistLog.map(w=>({val:w.cm})),  'var(--green)', PROFILE.startWaistCm); }
+function drawWeightChart() { drawLineChart('weight-chart', state.weightLog.map(w=>({val:w.kg})), 'var(--cyan)', PROFILE.startWeightKg, PROFILE.targetWeightKg); }
+function drawWaistChart()  { drawLineChart('waist-chart',  state.waistLog.map(w=>({val:w.cm})),  'var(--green)', PROFILE.startWaistCm, PROFILE.startWaistCm-8); }
+
+/* ─── Bar chart (rounded-top columns + dashed target) ─────────────────────────── */
+function drawBarChart(id, bars, color, targetVal) {
+  const canvas = document.getElementById(id);
+  if (!canvas || !bars.length) return;
+  const dpr = window.devicePixelRatio||1;
+  const w = canvas.offsetWidth, h = canvas.offsetHeight||150;
+  canvas.width = w*dpr; canvas.height = h*dpr;
+  const ctx = canvas.getContext('2d'); ctx.scale(dpr,dpr);
+
+  const vals = bars.map(b=>b.val);
+  const max = (Math.max(targetVal||0, ...vals) || 1) * 1.18;
+  const pad = {t:14,b:20,l:6,r:6};
+  const pw = w-pad.l-pad.r, ph = h-pad.t-pad.b;
+  const n = bars.length, slot = pw/n;
+  const bw = Math.min(28, slot*0.6);
+  const barY = v => pad.t + ph - (v/max)*ph;
+
+  // Target line
+  if (targetVal) {
+    const ty = barY(targetVal);
+    ctx.save();
+    ctx.setLineDash([4,4]); ctx.strokeStyle='rgba(18,22,40,0.25)'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(pad.l,ty); ctx.lineTo(w-pad.r,ty); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle='rgba(18,22,40,0.4)'; ctx.font='bold 9px -apple-system'; ctx.textAlign='right';
+    ctx.fillText('target', w-pad.r, ty-4); ctx.textAlign='left';
+    ctx.restore();
+  }
+
+  bars.forEach((b,i)=>{
+    const x = pad.l + i*slot + (slot-bw)/2;
+    const bh = Math.max(3, (b.val/max)*ph);
+    const y = pad.t + ph - bh;
+    const r = Math.min(5, bw/2);
+    ctx.beginPath();
+    ctx.moveTo(x, y+bh); ctx.lineTo(x, y+r);
+    ctx.arcTo(x, y, x+r, y, r); ctx.lineTo(x+bw-r, y);
+    ctx.arcTo(x+bw, y, x+bw, y+r, r); ctx.lineTo(x+bw, y+bh);
+    ctx.closePath();
+    ctx.fillStyle = b.color || color; ctx.fill();
+    ctx.fillStyle='rgba(18,22,40,0.4)'; ctx.font='600 9px -apple-system'; ctx.textAlign='center';
+    ctx.fillText(b.label, x+bw/2, h-6); ctx.textAlign='left';
+  });
+}
 
 function logWeight() {
   const v=parseFloat(document.getElementById('weight-input').value);
