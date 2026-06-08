@@ -53,6 +53,63 @@ function dayHasGym(ds) {
   return !!wl && Object.entries(wl).some(([sess, sd]) => SESSIONS[sess] && sessionHasWork(sd));
 }
 
+/* ─── Progression lookups (per-exercise history, "last time", charts) ──────────── */
+// Completed sets for one exercise slot on a given day, as {w,r} numbers.
+function doneSetsFor(sd, ei) {
+  if (!sd || !sd.sets || (sd.skipped && sd.skipped[ei])) return [];
+  return (sd.sets[ei] || [])
+    .filter(s => s.done && (s.w !== '' || s.r !== ''))
+    .map(s => ({ w: parseFloat(s.w) || 0, r: parseInt(s.r) || 0 }));
+}
+// Render a set list as "60×8, 60×8, 65×6".
+function fmtSets(arr) { return arr.map(s => `${s.w || '–'}×${s.r || '–'}`).join(', '); }
+// Heaviest working-set weight in a list (drives the progression chart).
+function topWeight(arr) { return arr.reduce((m, s) => Math.max(m, s.w), 0); }
+// Total volume (Σ weight × reps) of a set list.
+function volOf(arr) { return arr.reduce((m, s) => m + s.w * s.r, 0); }
+
+// Every logged performance of one program slot (session + exercise index),
+// newest first. Keyed by the fixed slot so it survives day-to-day; carries
+// that day's display name so swaps still read correctly.
+function exerciseHistory(session, ei, includeToday) {
+  const td = today();
+  return Object.keys(state.workoutLog)
+    .filter(d => includeToday || d < td)
+    .sort((a, b) => b.localeCompare(a))
+    .map(d => {
+      const sd = state.workoutLog[d][session];
+      const done = doneSetsFor(sd, ei);
+      if (!done.length) return null;
+      const name = (sd.names && sd.names[ei]) || SESSIONS[session].exercises[ei].name;
+      return { date: d, sets: done, name, top: topWeight(done), vol: volOf(done) };
+    })
+    .filter(Boolean);
+}
+// Most recent prior performance (powers the inline "last time" hint).
+function lastPerformance(session, ei) {
+  const h = exerciseHistory(session, ei, false);
+  return h.length ? h[0] : null;
+}
+
+// Minimal responsive SVG line chart for a series of numbers.
+function sparkline(vals, w, h) {
+  w = w || 280; h = h || 72;
+  if (vals.length < 2) return '';
+  const max = Math.max(...vals), min = Math.min(...vals), range = (max - min) || 1, pad = 8;
+  const step = (w - pad * 2) / (vals.length - 1);
+  const xy = i => {
+    const x = pad + i * step;
+    const y = h - pad - ((vals[i] - min) / range) * (h - pad * 2);
+    return [x, y];
+  };
+  const pts = vals.map((_, i) => xy(i).map(n => n.toFixed(1)).join(',')).join(' ');
+  const dots = vals.map((_, i) => { const [x, y] = xy(i); return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3.2" fill="var(--orange)"/>`; }).join('');
+  return `<svg viewBox="0 0 ${w} ${h}" width="100%" height="${h}" preserveAspectRatio="xMidYMid meet" style="display:block">
+    <polyline points="${pts}" fill="none" stroke="var(--orange)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+    ${dots}
+  </svg>`;
+}
+
 /* ─── Helpers ─────────────────────────────────────────────────────────────── */
 const today   = () => new Date().toISOString().split('T')[0];
 const dayName = d => ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][new Date(d+'T12:00:00').getDay()];
@@ -299,6 +356,13 @@ function renderTrainContent() {
         const exDone = sets.length>0 && sets.every(s=>s.done);
         const q = encodeURIComponent(dispName.split('/')[0].trim()+' proper form technique');
         const swapped = slog.names && slog.names[ei];
+        const last = lastPerformance(activeSession, ei);
+        const lastHtml = last ? `
+          <div class="lasttime" onclick="openExHist('${activeSession}',${ei})">
+            <span class="lt-lbl">Last · ${dayName(last.date)} ${fmtFull(last.date)}</span>
+            <span class="lt-sets">${fmtSets(last.sets)}</span>
+            <span class="lt-chart">📈</span>
+          </div>` : '';
         return `
         <div class="card exblock">
           <div class="exhead">
@@ -311,6 +375,7 @@ function renderTrainContent() {
               <a class="demobtn" href="https://www.youtube.com/results?search_query=${q}" target="_blank" rel="noopener">▶ Demo</a>
             </div>
           </div>
+          ${lastHtml}
           <div class="setgrid-head"><span>Set</span><span>kg</span><span>Reps</span><span>✓</span></div>
           ${sets.map((s,si)=>`
             <div class="setrow ${s.done?'done':''}">
@@ -531,6 +596,43 @@ function restoreExercise(ei) {
 }
 function closeSwap() { document.getElementById('swap-modal').classList.remove('open'); swapEi = null; }
 
+/* ─── Per-exercise history + progression chart (modal) ────────────────────────── */
+function openExHist(session, ei) {
+  const hist = exerciseHistory(session, ei, true); // newest first, incl. today
+  const sl = ensureSession(today(), session);
+  const name = (sl.names && sl.names[ei]) || SESSIONS[session].exercises[ei].name;
+  const body = document.getElementById('exhist-body');
+
+  if (!hist.length) {
+    body.innerHTML =
+      `<div class="mtit2">${name}</div>
+       <div class="exhist-empty">No logged sets yet. Tick off a set and it'll show up here with a progression chart.</div>
+       <button class="btn ghost block" onclick="closeExHist()">Close</button>`;
+  } else {
+    const chrono = [...hist].reverse();          // oldest → newest for the chart
+    const topVals = chrono.map(p => p.top);
+    const best = Math.max(...topVals);
+    const chart = sparkline(topVals);
+    const rows = hist.map(p => `
+      <div class="exhist-row">
+        <div class="exhist-date">${dayName(p.date)} ${fmtFull(p.date)}${p.date===today()?' · Today':''}</div>
+        <div class="exhist-sets">${fmtSets(p.sets)}</div>
+        <div class="exhist-vol">${Math.round(p.vol)} kg${p.top===best && p.sets.length?' · 🏅 PB':''}</div>
+      </div>`).join('');
+    body.innerHTML =
+      `<div class="mtit2">${name}</div>
+       ${chart ? `<div class="exhist-chartwrap">
+            <div class="exhist-chartlbl">Top set — kg over time</div>
+            ${chart}
+            <div class="exhist-chartmeta">Best ${best} kg · ${hist.length} session${hist.length>1?'s':''} logged</div>
+          </div>` : `<div class="exhist-chartmeta" style="margin-bottom:12px">Log one more session to unlock the trend chart.</div>`}
+       <div class="exhist-list">${rows}</div>
+       <button class="btn ghost block" style="margin-top:14px" onclick="closeExHist()">Close</button>`;
+  }
+  document.getElementById('exhist-modal').classList.add('open');
+}
+function closeExHist() { document.getElementById('exhist-modal').classList.remove('open'); }
+
 /* ─── Rest timer (floating bar) ───────────────────────────────────────────────── */
 let restTimer = null, restRemain = 0;
 function startRest() {
@@ -728,6 +830,8 @@ function renderHistory() {
   renderHistoryContent();
 }
 function setHistTab(t){ histTab=t; renderHistory(); }
+let histExpanded = {};
+function toggleHistEntry(k){ histExpanded[k] = !histExpanded[k]; renderHistoryContent(); }
 
 function renderHistoryContent() {
   const el = document.getElementById('history-content');
@@ -802,13 +906,23 @@ function renderHistoryContent() {
 
           if (wl) Object.entries(wl).forEach(([sess, sdata])=>{
             if (!SESSIONS[sess] || !sessionHasWork(sdata)) return;
-            let doneSets=0, totalSets=0, vol=0, fin=false;
+            let doneSets=0, totalSets=0, vol=0, fin=false, detail='';
             if (Array.isArray(sdata)) { doneSets = sdata.filter(Boolean).length; totalSets = SESSIONS[sess].exercises.length; }
             else if (sdata && sdata.sets) {
               sdata.sets.forEach((a,ei)=>{ if (sdata.skipped && sdata.skipped[ei]) return; a.forEach(s=>{ totalSets++; if (s.done){ doneSets++; vol += (parseFloat(s.w)||0)*(parseFloat(s.r)||0); } }); });
               fin = !!sdata.finishedAt;
+              const lines = [];
+              SESSIONS[sess].exercises.forEach((ex,ei)=>{
+                const done = doneSetsFor(sdata, ei);
+                if (!done.length) return;
+                const nm = ((sdata.names && sdata.names[ei]) || ex.name).split('/')[0].trim();
+                lines.push(`<div class="hd-ex"><span class="hd-nm">${nm}</span><span class="hd-sets">${fmtSets(done)}</span></div>`);
+              });
+              detail = lines.join('');
             }
-            entries.push({type:'gym', icon:'💪', title:`Session ${sess} — ${SESSIONS[sess].focus}`, meta:`${doneSets}/${totalSets} sets${vol?` · ${Math.round(vol)} kg volume`:''}${fin?' · ✅ finished':''}`});
+            entries.push({type:'gym', icon:'💪', key:`${d}|${sess}`, detail,
+              title:`Session ${sess} — ${SESSIONS[sess].focus}`,
+              meta:`${doneSets}/${totalSets} sets${vol?` · ${Math.round(vol)} kg volume`:''}${fin?' · ✅ finished':''}`});
           });
 
           if (fl && fl.length) {
@@ -826,14 +940,18 @@ function renderHistoryContent() {
           return `
             <div style="margin-bottom:14px">
               <div style="font-size:12px;font-weight:800;color:var(--text3);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid var(--border)">${dayName(d)} ${fmtFull(d)}${d===today()?' · Today':''}</div>
-              ${entries.map(e=>`
-                <div class="hentry">
+              ${entries.map(e=>{
+                const canExpand = e.type==='gym' && e.detail;
+                const open = canExpand && histExpanded[e.key];
+                return `
+                <div class="hentry ${canExpand?'tappable':''}" ${canExpand?`onclick="toggleHistEntry('${e.key}')"`:''}>
                   <div class="hdot ${e.type}">${e.icon}</div>
                   <div class="hi">
-                    <div class="htit">${e.title}</div>
+                    <div class="htit">${e.title}${canExpand?` <span class="hexp">${open?'▾':'▸'}</span>`:''}</div>
                     <div class="hmet">${e.meta}</div>
+                    ${open?`<div class="hdetail">${e.detail}</div>`:''}
                   </div>
-                </div>`).join('')}
+                </div>`;}).join('')}
             </div>`;
         }).join('')}
       </div>
