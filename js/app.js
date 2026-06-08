@@ -40,6 +40,18 @@ function ensureSession(date, session) {
   if (!s.skipped) s.skipped = {};   // exercises skipped today          {ei: true}
   return s;
 }
+// A session "counts" only once it has real work — at least one completed set
+// or an explicit finish. Stops merely *viewing* a session tab from creating
+// phantom 0/N entries in History and inflating the gym-session count.
+function sessionHasWork(sd) {
+  if (Array.isArray(sd)) return sd.some(Boolean);                 // legacy boolean array
+  if (sd && sd.sets) return !!sd.finishedAt || sd.sets.some(a => a.some(s => s.done));
+  return false;
+}
+function dayHasGym(ds) {
+  const wl = state.workoutLog[ds];
+  return !!wl && Object.entries(wl).some(([sess, sd]) => SESSIONS[sess] && sessionHasWork(sd));
+}
 
 /* ─── Helpers ─────────────────────────────────────────────────────────────── */
 const today   = () => new Date().toISOString().split('T')[0];
@@ -747,13 +759,15 @@ function renderHistoryContent() {
     let checkDate = new Date(td);
     while (true) {
       const ds = checkDate.toISOString().split('T')[0];
-      const hasActivity = state.workoutLog[ds] || state.foodLog[ds] || state.mobilityLog[ds];
+      const hasActivity = dayHasGym(ds)
+        || (state.foodLog[ds] && state.foodLog[ds].length)
+        || (state.mobilityLog[ds] && state.mobilityLog[ds].length);
       if (hasActivity) { streak++; checkDate.setDate(checkDate.getDate()-1); }
       else break;
     }
 
     // Stats summary
-    const totalWorkouts = Object.values(state.workoutLog).reduce((s,day)=>s+Object.keys(day).length,0);
+    const totalWorkouts = Object.values(state.workoutLog).reduce((s,day)=>s+Object.entries(day).filter(([sess,sd])=>SESSIONS[sess]&&sessionHasWork(sd)).length,0);
     const totalMobDays  = Object.keys(state.mobilityLog).filter(d=>state.mobilityLog[d].length>0).length;
     const totalFoodDays = Object.keys(state.foodLog).filter(d=>state.foodLog[d].length>0).length;
 
@@ -787,7 +801,7 @@ function renderHistoryContent() {
           const entries = [];
 
           if (wl) Object.entries(wl).forEach(([sess, sdata])=>{
-            if (!SESSIONS[sess]) return;
+            if (!SESSIONS[sess] || !sessionHasWork(sdata)) return;
             let doneSets=0, totalSets=0, vol=0, fin=false;
             if (Array.isArray(sdata)) { doneSets = sdata.filter(Boolean).length; totalSets = SESSIONS[sess].exercises.length; }
             else if (sdata && sdata.sets) {

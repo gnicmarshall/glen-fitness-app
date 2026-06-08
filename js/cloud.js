@@ -34,19 +34,28 @@
   function setStatus(s) { _status = s; renderCloudCard(); }
 
   // Debounced push of the whole state blob up to Firestore.
+  // NOTE: state is stored as a JSON *string* — Firestore rejects nested arrays
+  // (our workout `sets` is an array-of-arrays), so we serialise the whole thing.
   window.cloudPush = function () {
     if (!currentUser) return;
     setStatus('syncing');
     clearTimeout(saveTimer);
     saveTimer = setTimeout(() => {
-      docRef(currentUser.uid).set({ data: state, updatedAt: state.updatedAt || Date.now() })
+      docRef(currentUser.uid).set({ json: JSON.stringify(state), updatedAt: state.updatedAt || Date.now() })
         .then(() => setStatus('synced'))
         .catch(e => { console.warn('[cloud] push failed', e); setStatus('error'); });
     }, 800);
   };
 
+  // Parse a remote document's JSON payload (returns null if unusable).
+  function parseRemote(d) {
+    if (!d || !d.json) return null;
+    try { return JSON.parse(d.json); } catch (e) { console.warn('[cloud] bad remote json', e); return null; }
+  }
+
   // Replace local state with a remote copy and re-render the active screen.
   function adoptRemote(data) {
+    if (!data) return;
     applyingRemote = true;
     Object.keys(data).forEach(k => { state[k] = data[k]; });
     store.set('fitplan_v2', state);
@@ -64,14 +73,17 @@
     // One-off reconcile: whichever copy (local vs cloud) is newer wins.
     docRef(user.uid).get().then(snap => {
       const remote = snap.exists ? snap.data() : null;
+      const remoteData = parseRemote(remote);
       const localUpdated = state.updatedAt || 0;
       const remoteUpdated = (remote && remote.updatedAt) || 0;
 
-      if (remote && remote.data && remoteUpdated >= localUpdated) {
-        adoptRemote(remote.data);
+      if (remoteData && remoteUpdated >= localUpdated) {
+        adoptRemote(remoteData);
       } else {
         state.updatedAt = state.updatedAt || Date.now();
-        docRef(user.uid).set({ data: state, updatedAt: state.updatedAt }).catch(() => {});
+        docRef(user.uid).set({ json: JSON.stringify(state), updatedAt: state.updatedAt })
+          .then(() => setStatus('synced'))
+          .catch(e => { console.warn('[cloud] initial push failed', e); setStatus('error'); });
       }
       setStatus('synced');
 
@@ -79,8 +91,8 @@
       unsub = docRef(user.uid).onSnapshot(s => {
         if (!s.exists || applyingRemote) return;
         const d = s.data();
-        if (d.data && d.updatedAt && d.updatedAt > (state.updatedAt || 0)) {
-          adoptRemote(d.data);
+        if (d.updatedAt && d.updatedAt > (state.updatedAt || 0)) {
+          adoptRemote(parseRemote(d));
         }
       });
     }).catch(e => { console.warn('[cloud] reconcile failed', e); setStatus('error'); });
