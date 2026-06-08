@@ -36,6 +36,8 @@ function ensureSession(date, session) {
   } else if (!s.sets) {
     s.sets = exs.map(blankSets); s.finishedAt = s.finishedAt || null;
   }
+  if (!s.names)   s.names   = {};   // per-day exercise substitutions  {ei: "New name"}
+  if (!s.skipped) s.skipped = {};   // exercises skipped today          {ei: true}
   return s;
 }
 
@@ -246,9 +248,10 @@ function renderTrainContent() {
     const d = today();
     const sess = SESSIONS[activeSession];
     const slog = ensureSession(d, activeSession);
-    const totalSets = slog.sets.reduce((n,a)=>n+a.length,0);
-    const doneSets  = slog.sets.reduce((n,a)=>n+a.filter(s=>s.done).length,0);
-    const volume    = slog.sets.reduce((n,a)=>n+a.reduce((m,s)=>m+(s.done?(parseFloat(s.w)||0)*(parseFloat(s.r)||0):0),0),0);
+    const isSkip = ei => slog.skipped && slog.skipped[ei];
+    const totalSets = slog.sets.reduce((n,a,ei)=>n+(isSkip(ei)?0:a.length),0);
+    const doneSets  = slog.sets.reduce((n,a,ei)=>n+(isSkip(ei)?0:a.filter(s=>s.done).length),0);
+    const volume    = slog.sets.reduce((n,a,ei)=>n+(isSkip(ei)?0:a.reduce((m,s)=>m+(s.done?(parseFloat(s.w)||0)*(parseFloat(s.r)||0):0),0)),0);
     const rest = state.restSec||90;
 
     el.innerHTML = `
@@ -269,17 +272,32 @@ function renderTrainContent() {
       </div>
 
       ${sess.exercises.map((ex,ei)=>{
+        const dispName = (slog.names && slog.names[ei]) || ex.name;
+        if (isSkip(ei)) return `
+        <div class="card exblock skipped">
+          <div class="exhead">
+            <div>
+              <div class="exnm2" style="color:var(--text3);text-decoration:line-through">${dispName}</div>
+              <div class="extar">Skipped today</div>
+            </div>
+            <button class="demobtn alt" onclick="restoreExercise(${ei})">↩ Restore</button>
+          </div>
+        </div>`;
         const sets = slog.sets[ei]||[];
         const exDone = sets.length>0 && sets.every(s=>s.done);
-        const q = encodeURIComponent(ex.name.split('/')[0].trim()+' proper form technique');
+        const q = encodeURIComponent(dispName.split('/')[0].trim()+' proper form technique');
+        const swapped = slog.names && slog.names[ei];
         return `
         <div class="card exblock">
           <div class="exhead">
             <div>
-              <div class="exnm2 ${exDone?'done':''}">${ex.name}</div>
+              <div class="exnm2 ${exDone?'done':''}">${dispName}${swapped?' <span class="swaptag">swapped</span>':''}</div>
               <div class="extar">Target ${ex.sets} × ${ex.reps}${ex.note?` · ${ex.note}`:''}</div>
             </div>
-            <a class="demobtn" href="https://www.youtube.com/results?search_query=${q}" target="_blank" rel="noopener">▶ Demo</a>
+            <div class="exacts">
+              <button class="demobtn alt" onclick="openSwap(${ei})">⇄ Swap</button>
+              <a class="demobtn" href="https://www.youtube.com/results?search_query=${q}" target="_blank" rel="noopener">▶ Demo</a>
+            </div>
           </div>
           <div class="setgrid-head"><span>Set</span><span>kg</span><span>Reps</span><span>✓</span></div>
           ${sets.map((s,si)=>`
@@ -455,9 +473,51 @@ function reopenWorkout(date, session) {
 }
 function clearSession(date, session) {
   if (!state.workoutLog[date]) state.workoutLog[date] = {};
-  state.workoutLog[date][session] = { sets: SESSIONS[session].exercises.map(blankSets), finishedAt: null };
+  state.workoutLog[date][session] = { sets: SESSIONS[session].exercises.map(blankSets), finishedAt: null, names: {}, skipped: {} };
   save(); renderTrainContent();
 }
+
+/* ─── Swap / skip exercise (today only) ───────────────────────────────────────── */
+let swapEi = null;
+function openSwap(ei) {
+  swapEi = ei;
+  const ex = SESSIONS[activeSession].exercises[ei];
+  const sl = ensureSession(today(), activeSession);
+  const current = (sl.names && sl.names[ei]) || ex.name;
+  const alts = ex.name.split('/').map(s => s.trim()).filter(Boolean);
+  document.getElementById('swap-body').innerHTML = `
+    <div style="font-size:13px;color:var(--text2);margin-bottom:16px;line-height:1.55">Couldn't do this one? Pick what you actually did, type your own, or skip it. Only changes today's session.</div>
+    ${alts.length>1 ? `<div class="swaplbl">Listed alternatives</div>
+      <div class="swapchips">${alts.map(a=>`<button class="swapchip ${a===current?'active':''}" onclick="applySwap('${a.replace(/'/g,"\\'")}')">${a}</button>`).join('')}</div>`:''}
+    <div class="swaplbl">Or type your own</div>
+    <input id="swap-input" class="setinp" style="text-align:left;width:100%;margin-bottom:16px" type="text" placeholder="e.g. Dumbbell bench press" value="${current.replace(/"/g,'&quot;')}">
+    <button class="btn block" onclick="applySwapInput()">Save swap</button>
+    <div style="display:flex;gap:9px;margin-top:9px">
+      <button class="btn ghost block sm" onclick="skipExercise(${ei})">Skip today</button>
+      <button class="btn ghost block sm" onclick="restoreExercise(${ei})">Reset to original</button>
+    </div>
+    <button class="btn ghost block sm" style="margin-top:9px" onclick="closeSwap()">Cancel</button>`;
+  document.getElementById('swap-modal').classList.add('open');
+}
+function applySwap(name) {
+  if (swapEi == null) return;
+  const sl = ensureSession(today(), activeSession);
+  const orig = SESSIONS[activeSession].exercises[swapEi].name;
+  if (name && name.trim() && name.trim() !== orig) sl.names[swapEi] = name.trim();
+  else delete sl.names[swapEi];
+  delete sl.skipped[swapEi];
+  save(); closeSwap(); renderTrainContent();
+}
+function applySwapInput() { applySwap(document.getElementById('swap-input').value); }
+function skipExercise(ei) {
+  const sl = ensureSession(today(), activeSession);
+  sl.skipped[ei] = true; save(); closeSwap(); renderTrainContent();
+}
+function restoreExercise(ei) {
+  const sl = ensureSession(today(), activeSession);
+  delete sl.skipped[ei]; delete sl.names[ei]; save(); closeSwap(); renderTrainContent();
+}
+function closeSwap() { document.getElementById('swap-modal').classList.remove('open'); swapEi = null; }
 
 /* ─── Rest timer (floating bar) ───────────────────────────────────────────────── */
 let restTimer = null, restRemain = 0;
@@ -480,7 +540,7 @@ function updateRestDisplay() {
   const m = Math.floor(Math.max(0,restRemain)/60), s = Math.max(0,restRemain)%60;
   const el = document.getElementById('rest-time'); if (el) el.textContent = `${m}:${s.toString().padStart(2,'0')}`;
 }
-function addRest(n) { restRemain += n; updateRestDisplay(); }
+function addRest(n) { restRemain = Math.max(5, restRemain + n); updateRestDisplay(); }
 function skipRest() { if (restTimer) clearInterval(restTimer); restTimer = null; hideRest(); }
 function hideRest() { const bar = document.getElementById('rest-bar'); if (bar) bar.classList.remove('show'); }
 
@@ -731,7 +791,7 @@ function renderHistoryContent() {
             let doneSets=0, totalSets=0, vol=0, fin=false;
             if (Array.isArray(sdata)) { doneSets = sdata.filter(Boolean).length; totalSets = SESSIONS[sess].exercises.length; }
             else if (sdata && sdata.sets) {
-              sdata.sets.forEach(a=>a.forEach(s=>{ totalSets++; if (s.done){ doneSets++; vol += (parseFloat(s.w)||0)*(parseFloat(s.r)||0); } }));
+              sdata.sets.forEach((a,ei)=>{ if (sdata.skipped && sdata.skipped[ei]) return; a.forEach(s=>{ totalSets++; if (s.done){ doneSets++; vol += (parseFloat(s.w)||0)*(parseFloat(s.r)||0); } }); });
               fin = !!sdata.finishedAt;
             }
             entries.push({type:'gym', icon:'💪', title:`Session ${sess} — ${SESSIONS[sess].focus}`, meta:`${doneSets}/${totalSets} sets${vol?` · ${Math.round(vol)} kg volume`:''}${fin?' · ✅ finished':''}`});

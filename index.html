@@ -71,6 +71,7 @@
 <div id="rest-bar" class="restbar">
   <div class="rb-info"><span class="rb-lbl">Rest</span><span class="rb-time" id="rest-time">1:30</span></div>
   <div class="rb-btns">
+    <button class="rb-btn" onclick="addRest(-15)">−15s</button>
     <button class="rb-btn" onclick="addRest(15)">+15s</button>
     <button class="rb-btn skip" onclick="skipRest()">Skip</button>
   </div>
@@ -92,6 +93,15 @@
       <button class="btn block" onclick="markDrillDone(timerDrillIdx)">✅ Mark Done</button>
       <button class="btn ghost block" onclick="closeDrillModal()">Close</button>
     </div>
+  </div>
+</div>
+
+<!-- SWAP EXERCISE MODAL -->
+<div class="mover" id="swap-modal">
+  <div class="msheet">
+    <div class="mhandle"></div>
+    <div class="mtit">Swap exercise</div>
+    <div id="swap-body"></div>
   </div>
 </div>
 
