@@ -1406,7 +1406,20 @@ function formatSec(s){ const m=Math.floor(s/60),ss=s%60; return m>0?`${m}:${ss.t
 const renders = { home:renderHome, train:renderTrain, eat:renderEat, history:renderHistory, progress:renderProgress };
 
 window.addEventListener('DOMContentLoaded', () => {
-  if ('serviceWorker' in navigator) navigator.serviceWorker.register('/glen-fitness-app/sw.js').catch(()=>{});
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/glen-fitness-app/sw.js').then(reg => {
+      // Poll for a newer worker each time the app is reopened / refocused.
+      document.addEventListener('visibilitychange', () => { if (!document.hidden) reg.update(); });
+      // Only auto-reload on a genuine *update* (a controller already exists),
+      // not on first install — so a fresh deploy applies itself with no dance.
+      if (navigator.serviceWorker.controller) {
+        let reloaded = false;
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+          if (reloaded) return; reloaded = true; location.reload();
+        });
+      }
+    }).catch(()=>{});
+  }
   document.querySelectorAll('.tab-btn').forEach(btn=>btn.addEventListener('click',()=>navigate(btn.dataset.tab)));
 
   // Restore last tab (survives sleep/wake)

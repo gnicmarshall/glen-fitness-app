@@ -1,4 +1,4 @@
-const CACHE_NAME = 'fitplan-v12';
+const CACHE_NAME = 'fitplan-v13';
 const URLS = [
   '/glen-fitness-app/',
   '/glen-fitness-app/index.html',
