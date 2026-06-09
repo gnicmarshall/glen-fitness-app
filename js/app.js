@@ -563,7 +563,8 @@ function openSwap(ei) {
   const current = (sl.names && sl.names[ei]) || ex.name;
   const alts = ex.name.split('/').map(s => s.trim()).filter(Boolean);
   document.getElementById('swap-body').innerHTML = `
-    <div style="font-size:13px;color:var(--text2);margin-bottom:16px;line-height:1.55">Couldn't do this one? Pick what you actually did, type your own, or skip it. Only changes today's session.</div>
+    <div style="font-size:13px;color:var(--text2);margin-bottom:14px;line-height:1.55">Couldn't do this one? Browse the library, pick what you actually did, type your own, or skip it. Only changes today's session.</div>
+    <button class="btn block" style="margin-bottom:16px" onclick="openLibrary(${ei})">🔍 Browse exercise library</button>
     ${alts.length>1 ? `<div class="swaplbl">Listed alternatives</div>
       <div class="swapchips">${alts.map(a=>`<button class="swapchip ${a===current?'active':''}" onclick="applySwap('${a.replace(/'/g,"\\'")}')">${a}</button>`).join('')}</div>`:''}
     <div class="swaplbl">Or type your own</div>
@@ -595,6 +596,78 @@ function restoreExercise(ei) {
   delete sl.skipped[ei]; delete sl.names[ei]; save(); closeSwap(); renderTrainContent();
 }
 function closeSwap() { document.getElementById('swap-modal').classList.remove('open'); swapEi = null; }
+
+/* ─── Exercise library (free-exercise-db: 870+ exercises with photos) ──────────── */
+const EXDB_URL = 'https://cdn.jsdelivr.net/gh/yuhonas/free-exercise-db@main/dist/exercises.json';
+const EXDB_IMG = 'https://cdn.jsdelivr.net/gh/yuhonas/free-exercise-db@main/exercises/';
+const LIB_MUSCLES = ['chest','lats','middle back','shoulders','biceps','triceps','quadriceps','hamstrings','glutes','abdominals','calves','traps','lower back','forearms'];
+const MOVE_KEYWORDS = ['squat','bench','deadlift','pulldown','chin','pull-up','row','overhead press','press','curl','lateral raise','raise','hip thrust','thrust','split squat','lunge','leg press','extension','farmer','carry','face pull','calf','fly','dip','crunch','plank','pallof'];
+let exLibrary = null, libQuery = '', libMuscle = '', libShown = [];
+
+// Load the library once: cached copy is instant + offline; refresh in background.
+function loadExerciseLibrary() {
+  if (exLibrary) return Promise.resolve(exLibrary);
+  try { const c = localStorage.getItem('fitplan_exdb'); if (c) exLibrary = JSON.parse(c); } catch (e) {}
+  const refresh = fetch(EXDB_URL).then(r => r.json()).then(d => {
+    exLibrary = d; try { localStorage.setItem('fitplan_exdb', JSON.stringify(d)); } catch (e) {} return d;
+  });
+  return exLibrary ? Promise.resolve(exLibrary) : refresh;
+}
+function guessKeyword(name) { const n = name.toLowerCase(); for (const k of MOVE_KEYWORDS) if (n.includes(k)) return k; return ''; }
+
+function openLibrary(ei) {
+  swapEi = ei;
+  const sl = ensureSession(today(), activeSession);
+  const cur = (sl.names && sl.names[ei]) || SESSIONS[activeSession].exercises[ei].name;
+  libQuery = guessKeyword(cur); libMuscle = '';
+  const body = document.getElementById('swap-body');
+  body.innerHTML = `<div class="lib-loading">Loading exercise library…</div>`;
+  loadExerciseLibrary().then(() => buildLibraryUI(ei)).catch(() => {
+    body.innerHTML = `<div class="lib-loading">Couldn't load the library — you may be offline. Open it once with a connection and it'll be saved for next time.</div>
+      <button class="btn ghost block" style="margin-top:12px" onclick="openSwap(${ei})">← Back</button>`;
+  });
+}
+function buildLibraryUI(ei) {
+  document.getElementById('swap-body').innerHTML = `
+    <input id="lib-search" class="setinp" style="text-align:left;width:100%;margin-bottom:10px" type="text"
+           placeholder="Search e.g. bench, squat, row" value="${libQuery.replace(/"/g,'&quot;')}"
+           oninput="libQuery=this.value; renderLibraryList()">
+    <div class="lib-chips" id="lib-chips"></div>
+    <div class="lib-count" id="lib-count"></div>
+    <div class="lib-list" id="lib-list"></div>
+    <button class="btn ghost block" style="margin-top:12px" onclick="openSwap(${ei})">← Back to swap</button>`;
+  renderLibraryChips(); renderLibraryList();
+}
+function renderLibraryChips() {
+  const el = document.getElementById('lib-chips'); if (!el) return;
+  el.innerHTML = ['', ...LIB_MUSCLES].map(m =>
+    `<button class="lib-chip ${libMuscle===m?'active':''}" onclick="setLibMuscle('${m}')">${m||'All'}</button>`).join('');
+}
+function setLibMuscle(m) { libMuscle = m; renderLibraryChips(); renderLibraryList(); }
+function libFiltered() {
+  const q = libQuery.trim().toLowerCase();
+  return (exLibrary || []).filter(x => {
+    if (libMuscle && !(x.primaryMuscles || []).includes(libMuscle)) return false;
+    if (q && !x.name.toLowerCase().includes(q)) return false;
+    return true;
+  });
+}
+function renderLibraryList() {
+  const listEl = document.getElementById('lib-list'); if (!listEl) return;
+  const list = libFiltered();
+  libShown = list.slice(0, 60);
+  const cnt = document.getElementById('lib-count');
+  if (cnt) cnt.textContent = `${list.length} exercise${list.length===1?'':'s'}${list.length>libShown.length?` · showing first ${libShown.length}`:''}`;
+  listEl.innerHTML = libShown.map((x, i) => {
+    const img = x.images && x.images[0] ? EXDB_IMG + x.images[0] : '';
+    const sub = [x.equipment, (x.primaryMuscles || [])[0]].filter(Boolean).join(' · ');
+    return `<button class="lib-item" onclick="pickLibraryIdx(${i})">
+        ${img ? `<img class="lib-thumb" src="${img}" loading="lazy" alt="">` : `<div class="lib-thumb empty"></div>`}
+        <div class="lib-info"><div class="lib-nm">${x.name}</div><div class="lib-sub">${sub}</div></div>
+      </button>`;
+  }).join('') || '<div class="lib-loading">No matches — try a different word or muscle.</div>';
+}
+function pickLibraryIdx(i) { const x = libShown[i]; if (x) applySwap(x.name); }
 
 /* ─── Per-exercise history + progression chart (modal) ────────────────────────── */
 function openExHist(session, ei) {
@@ -634,29 +707,48 @@ function openExHist(session, ei) {
 function closeExHist() { document.getElementById('exhist-modal').classList.remove('open'); }
 
 /* ─── Rest timer (floating bar) ───────────────────────────────────────────────── */
-let restTimer = null, restRemain = 0;
+// Rest timer is driven by an absolute END timestamp, not a decrementing
+// counter — so it stays correct even when the screen locks or the app is
+// backgrounded (which freezes setInterval). On return we just recompute
+// remaining = restEnd − now.
+let restTimer = null, restRemain = 0, restEnd = 0, restDone = false;
 function startRest() {
   restRemain = state.restSec || 90;
+  restEnd = Date.now() + restRemain * 1000;
+  restDone = false;
   const bar = document.getElementById('rest-bar'); if (bar) bar.classList.add('show');
   updateRestDisplay();
   if (restTimer) clearInterval(restTimer);
-  restTimer = setInterval(() => {
-    restRemain--; updateRestDisplay();
-    if (restRemain <= 0) {
-      clearInterval(restTimer); restTimer = null;
-      if (navigator.vibrate) navigator.vibrate([300,120,300]);
-      const t = document.getElementById('rest-time'); if (t) t.textContent = 'Go! 💪';
-      setTimeout(hideRest, 1500);
-    }
-  }, 1000);
+  restTimer = setInterval(tickRest, 250);
+}
+function tickRest() {
+  if (restEnd <= 0) return;
+  restRemain = Math.round((restEnd - Date.now()) / 1000);
+  if (restRemain > 0) { updateRestDisplay(); return; }
+  restRemain = 0;
+  if (restTimer) { clearInterval(restTimer); restTimer = null; }
+  restEnd = 0;
+  if (!restDone) {
+    restDone = true;
+    if (navigator.vibrate) navigator.vibrate([300,120,300]);
+    const t = document.getElementById('rest-time'); if (t) t.textContent = 'Go! 💪';
+    setTimeout(hideRest, 1500);
+  }
 }
 function updateRestDisplay() {
   const m = Math.floor(Math.max(0,restRemain)/60), s = Math.max(0,restRemain)%60;
   const el = document.getElementById('rest-time'); if (el) el.textContent = `${m}:${s.toString().padStart(2,'0')}`;
 }
-function addRest(n) { restRemain = Math.max(5, restRemain + n); updateRestDisplay(); }
-function skipRest() { if (restTimer) clearInterval(restTimer); restTimer = null; hideRest(); }
+function addRest(n) {
+  if (restEnd <= 0) return;
+  restEnd = Math.max(Date.now() + 5000, restEnd + n * 1000);
+  restRemain = Math.round((restEnd - Date.now()) / 1000);
+  updateRestDisplay();
+}
+function skipRest() { if (restTimer) clearInterval(restTimer); restTimer = null; restEnd = 0; hideRest(); }
 function hideRest() { const bar = document.getElementById('rest-bar'); if (bar) bar.classList.remove('show'); }
+// Re-sync instantly when the app comes back to the foreground.
+document.addEventListener('visibilitychange', () => { if (!document.hidden && restEnd > 0) tickRest(); });
 
 /* ══════════════════════════════════════════════════════════════════════════════
    EAT

@@ -441,6 +441,23 @@ body {
 .swapchip.active { background:var(--orange); color:#fff; border-color:var(--orange); }
 .swapchip:active { opacity:0.8; }
 
+/* ─── Exercise library browser ──────────────────────────────────────────────── */
+.lib-loading { font-size:13.5px; color:var(--text3); line-height:1.6; text-align:center; padding:24px 8px; }
+.lib-chips { display:flex; gap:7px; overflow-x:auto; padding-bottom:8px; margin-bottom:8px; -webkit-overflow-scrolling:touch; }
+.lib-chips::-webkit-scrollbar { height:0; }
+.lib-chip { flex-shrink:0; background:var(--bg2); border:1px solid var(--border); border-radius:20px; padding:6px 13px; font-size:12.5px; font-weight:700; color:var(--text2); cursor:pointer; text-transform:capitalize; white-space:nowrap; }
+.lib-chip.active { background:var(--orange); color:#fff; border-color:var(--orange); }
+.lib-count { font-size:11px; font-weight:700; color:var(--text3); text-transform:uppercase; letter-spacing:0.4px; margin-bottom:8px; }
+.lib-list { display:flex; flex-direction:column; gap:8px; max-height:54vh; overflow-y:auto; -webkit-overflow-scrolling:touch; }
+.lib-item { display:flex; align-items:center; gap:12px; width:100%; text-align:left; background:var(--bg2); border:1px solid var(--border); border-radius:13px; padding:8px; cursor:pointer; }
+.lib-item:active { opacity:0.8; }
+.lib-thumb { width:54px; height:54px; border-radius:10px; object-fit:cover; background:#fff; flex-shrink:0; }
+.lib-thumb.empty { background:var(--border); }
+.lib-info { min-width:0; }
+.lib-nm { font-size:14px; font-weight:700; color:var(--text); line-height:1.3; }
+.lib-sub { font-size:11.5px; color:var(--text3); font-weight:600; margin-top:2px; text-transform:capitalize; }
+.lib-more { font-size:11.5px; color:var(--text3); text-align:center; margin-top:10px; }
+
 .setgrid-head, .setrow { display:grid; grid-template-columns:30px 1fr 1fr 42px; gap:9px; align-items:center; }
 .setgrid-head { padding:0 0 7px; font-size:9.5px; font-weight:800; letter-spacing:0.5px; text-transform:uppercase; color:var(--text3); }
 .setgrid-head span { text-align:center; }
