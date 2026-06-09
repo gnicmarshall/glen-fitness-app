@@ -667,7 +667,25 @@ function renderLibraryList() {
       </button>`;
   }).join('') || '<div class="lib-loading">No matches — try a different word or muscle.</div>';
 }
-function pickLibraryIdx(i) { const x = libShown[i]; if (x) applySwap(x.name); }
+function pickLibraryIdx(i) { const x = libShown[i]; if (x) renderLibraryDetail(x); }
+
+function renderLibraryDetail(x) {
+  const body = document.getElementById('swap-body'); if (!body) return;
+  const imgs = (x.images || []).slice(0, 2).map(img =>
+    `<img class="lib-detail-img" src="${EXDB_IMG + img}" loading="lazy" alt="${x.name} demo">`).join('');
+  const muscles = [...(x.primaryMuscles||[]), ...(x.secondaryMuscles||[]).map(m=>`${m} (secondary)`)].join(', ');
+  const steps = (x.instructions||[]).map((s,i)=>`<div class="lib-step"><span class="lib-step-n">${i+1}</span><span>${s}</span></div>`).join('');
+  const chips = [x.level, x.equipment, x.mechanic].filter(Boolean)
+    .map(t=>`<span class="lib-badge">${t}</span>`).join('');
+  body.innerHTML = `
+    <div class="lib-detail-imgs">${imgs}</div>
+    <div class="lib-detail-name">${x.name}</div>
+    <div class="lib-badges">${chips}</div>
+    ${muscles ? `<div class="lib-detail-muscles">💪 ${muscles}</div>` : ''}
+    ${steps ? `<div class="lib-detail-steps">${steps}</div>` : ''}
+    <button class="btn block" style="margin-top:16px" onclick="applySwap(${JSON.stringify(x.name)})">Swap this in today</button>
+    <button class="btn ghost block" style="margin-top:9px" onclick="buildLibraryUI(${swapEi})">← Back to library</button>`;
+}
 
 /* ─── Per-exercise history + progression chart (modal) ────────────────────────── */
 function openExHist(session, ei) {
