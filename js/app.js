@@ -58,9 +58,12 @@ function ensureSession(date, session) {
 // A session "counts" only once it has real work — at least one completed set
 // or an explicit finish. Stops merely *viewing* a session tab from creating
 // phantom 0/N entries in History and inflating the gym-session count.
+// A set counts as "logged" once you've entered a weight or reps — you don't
+// have to tick the ✓ (that just drives the rest timer / live checklist).
+function setLogged(s) { return !!s && (s.done || (s.w !== '' && s.w != null) || (s.r !== '' && s.r != null)); }
 function sessionHasWork(sd) {
   if (Array.isArray(sd)) return sd.some(Boolean);                 // legacy boolean array
-  if (sd && sd.sets) return !!sd.finishedAt || sd.sets.some(a => a.some(s => s.done));
+  if (sd && sd.sets) return !!sd.finishedAt || sd.sets.some(a => a.some(setLogged));
   return false;
 }
 function dayHasGym(ds) {
@@ -69,11 +72,11 @@ function dayHasGym(ds) {
 }
 
 /* ─── Progression lookups (per-exercise history, "last time", charts) ──────────── */
-// Completed sets for one exercise slot on a given day, as {w,r} numbers.
+// Logged sets for one exercise slot on a given day, as {w,r} numbers.
 function doneSetsFor(sd, ei) {
   if (!sd || !sd.sets || (sd.skipped && sd.skipped[ei])) return [];
   return (sd.sets[ei] || [])
-    .filter(s => s.done && (s.w !== '' || s.r !== ''))
+    .filter(s => setLogged(s) && (s.w !== '' || s.r !== ''))
     .map(s => ({ w: parseFloat(s.w) || 0, r: parseInt(s.r) || 0 }));
 }
 // Render a set list as "60×8, 60×8, 65×6".
@@ -557,7 +560,14 @@ function addSet(date, session, ei) {
 }
 function setRest(v) { state.restSec = v; save(); renderTrainContent(); }
 function finishWorkout(date, session) {
-  const sl = ensureSession(date, session); sl.finishedAt = new Date().toISOString();
+  const sl = ensureSession(date, session);
+  // Tick any set you've entered numbers into, so "Finish & Log" commits
+  // everything you typed — no need to tap each ✓ first.
+  sl.sets.forEach((arr, ei) => {
+    if (sl.skipped && sl.skipped[ei]) return;
+    arr.forEach(s => { if ((s.w !== '' && s.w != null) || (s.r !== '' && s.r != null)) s.done = true; });
+  });
+  sl.finishedAt = new Date().toISOString();
   save(); skipRest(); renderTrainContent();
   if (navigator.vibrate) navigator.vibrate(80);
 }
@@ -1043,7 +1053,7 @@ function renderHistoryContent() {
             let doneSets=0, totalSets=0, vol=0, fin=false, detail='';
             if (Array.isArray(sdata)) { doneSets = sdata.filter(Boolean).length; totalSets = SESSIONS[sess].exercises.length; }
             else if (sdata && sdata.sets) {
-              sdata.sets.forEach((a,ei)=>{ if (sdata.skipped && sdata.skipped[ei]) return; const ex = SESSIONS[sess].exercises[ei]; const repBased = !ex || exMeasure((sdata.names&&sdata.names[ei])||ex.name, ex.reps).label === 'Reps'; a.forEach(s=>{ totalSets++; if (s.done){ doneSets++; if (repBased) vol += (parseFloat(s.w)||0)*(parseFloat(s.r)||0); } }); });
+              sdata.sets.forEach((a,ei)=>{ if (sdata.skipped && sdata.skipped[ei]) return; const ex = SESSIONS[sess].exercises[ei]; const repBased = !ex || exMeasure((sdata.names&&sdata.names[ei])||ex.name, ex.reps).label === 'Reps'; a.forEach(s=>{ totalSets++; if (setLogged(s)){ doneSets++; if (repBased) vol += (parseFloat(s.w)||0)*(parseFloat(s.r)||0); } }); });
               fin = !!sdata.finishedAt;
               const lines = [];
               SESSIONS[sess].exercises.forEach((ex,ei)=>{

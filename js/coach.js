@@ -4,10 +4,20 @@
    GitHub Pages or anywhere else. No backend required (uses Anthropic's direct
    browser-access header). Pay-per-use on his own account. */
 (function () {
-  const KEY_LS = 'fitplan_anthropic_key';
-  const MODEL  = 'claude-sonnet-4-6';   // swap to 'claude-haiku-4-5' for cheaper
-  let msgs = [];          // [{role:'user'|'assistant', content:'…'}]
+  const KEY_LS  = 'fitplan_anthropic_key';
+  const CHAT_LS = 'fitplan_coach_chat';
+  const MODEL   = 'claude-sonnet-4-6';   // swap to 'claude-haiku-4-5' for cheaper
   let busy = false;
+
+  // Chat is persisted to this device so it survives closing/reloading the app.
+  function loadMsgs() { try { return JSON.parse(localStorage.getItem(CHAT_LS)) || []; } catch (e) { return []; } }
+  function saveMsgs() { try { localStorage.setItem(CHAT_LS, JSON.stringify(msgs.slice(-40))); } catch (e) {} }
+  let msgs = loadMsgs();   // [{role:'user'|'assistant', content:'…'}]
+
+  window.coachNewChat = function () {
+    if (msgs.length && !confirm('Start a new chat? This clears the current conversation.')) return;
+    msgs = []; saveMsgs(); renderThread();
+  };
 
   const getKey = () => { try { return localStorage.getItem(KEY_LS) || ''; } catch (e) { return ''; } };
 
@@ -39,7 +49,8 @@
         if (!SESSIONS[sk] || !sd || !sd.sets) return;
         const lines = [];
         SESSIONS[sk].exercises.forEach((ex, ei) => {
-          const done = (sd.sets[ei] || []).filter(s => s.done);
+          // Count a set once numbers are entered — don't require the ✓ tick.
+          const done = (sd.sets[ei] || []).filter(s => s.done || (s.w !== '' && s.w != null) || (s.r !== '' && s.r != null));
           if (!done.length) return;
           const nm = (sd.names && sd.names[ei]) || ex.name;
           lines.push(`${nm.split('/')[0].trim()}: ` + done.map(s => s.w ? `${s.w}kg×${s.r}` : `${s.r}`).join(', '));
@@ -73,7 +84,7 @@ HOW TO COACH:
   async function send(text) {
     if (busy) return;
     const key = getKey(); if (!key) return;
-    msgs.push({ role: 'user', content: text });
+    msgs.push({ role: 'user', content: text }); saveMsgs();
     busy = true; renderThread();
     try {
       const res = await fetch('https://api.anthropic.com/v1/messages', {
@@ -88,7 +99,7 @@ HOW TO COACH:
           model: MODEL,
           max_tokens: 800,
           system: [{ type: 'text', text: buildSystem(), cache_control: { type: 'ephemeral' } }],
-          messages: msgs.map(m => ({ role: m.role, content: m.content }))
+          messages: msgs.slice(-20).map(m => ({ role: m.role, content: m.content }))
         })
       });
       if (!res.ok) {
@@ -104,6 +115,7 @@ HOW TO COACH:
     } catch (e) {
       msgs.push({ role: 'assistant', content: '⚠ ' + (e.message || e) });
     }
+    saveMsgs();
     busy = false; renderThread();
   }
 
@@ -160,7 +172,10 @@ HOW TO COACH:
         <textarea id="coach-input" class="coach-input" rows="1" placeholder="Ask your coach…"></textarea>
         <button class="btn" id="coach-send" onclick="coachSend()">Send</button>
       </div>
-      <button class="coach-removekey" onclick="clearCoachKey()">Remove API key</button>`;
+      <div class="coach-controls">
+        <button class="coach-removekey" onclick="coachNewChat()">＋ New chat</button>
+        <button class="coach-removekey" onclick="clearCoachKey()">Remove API key</button>
+      </div>`;
     renderThread();
   };
 
