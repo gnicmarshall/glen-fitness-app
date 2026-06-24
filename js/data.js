@@ -20,53 +20,62 @@ const NUTRITION_TARGETS = {
 
 // ─── Supplements ──────────────────────────────────────────────────────────────
 const SUPPLEMENTS = [
-  { name: 'Creatine monohydrate', dose: '3–5 g', timing: 'Any time, daily', why: 'Best-supported ergogenic for strength & lean mass' },
-  { name: 'Whey / Casein protein', dose: '25–40 g', timing: 'Post-lift or before bed', why: 'Hits 180–210 g/day protein target' },
-  { name: 'Vitamin D', dose: '10 mcg', timing: 'With a meal', why: 'UK default for autumn/winter; sun-exposure insurance' },
-  { name: 'Algal omega-3', dose: '250–500 mg EPA+DHA', timing: 'With food', why: 'EPA/DHA alternative since you dislike fish/seafood' },
+  { name: 'Ape Nutrition Beef Protein', dose: '1 scoop (~25 g protein)', timing: 'Post-lift or as a snack', why: 'Cacao maple sea salt — dairy-free protein toward your 180–210 g/day target' },
+  { name: 'Newbeing Men’s Supplement', dose: 'Per label, daily', timing: 'With a meal', why: 'Daily multivitamin — covers vitamin D & key micronutrients' },
+  { name: 'Omega-3', dose: '~250–500 mg EPA+DHA', timing: 'With food', why: 'Heart & recovery support — helps your raised cholesterol markers' },
+  { name: 'Creatine monohydrate', dose: '3–5 g', timing: 'Any time, daily', why: 'Best-supported ergogenic for strength & lean mass — add if not already taking' },
 ];
 
 // ─── Workout Sessions ─────────────────────────────────────────────────────────
+// ─── Sessions ─────────────────────────────────────────────────────────────────
+// Elastic 3-day plan from the deep-research report: A + B are the non-negotiable
+// floor (every major muscle ~2×/week), C is the bonus when you're fresh. Sharpened
+// for the lean "Fight Club" look without losing what the health report calls for:
+//   • Key compounds pushed to 4 hard sets, reps tightened toward 6–12.
+//   • Side delts on all three days — the single biggest lever for lean width.
+//   • Shoulder-friendly selection + face pulls / posture work KEPT (your report
+//     flags shoulder mobility as a real bottleneck — this isn't filler).
+//   • No bent-over rows (chest-supported / pulldown only).
+//   • Conditioning finishers kept for fat-loss + cholesterol markers.
+// Push the last 1–2 reps of each set close to failure — that proximity is what
+// retains muscle in a deficit. The deficit reveals it; the lifting protects it.
 const SESSIONS = {
   A: {
     label: 'Session A',
-    focus: 'Squat · Chest · Row',
+    focus: 'Hinge · Pull · Delts',
     exercises: [
-      { name: 'Safety-bar Squat / Front Squat / Leg Press', sets: '3–4', reps: '5–8', note: 'Controlled eccentric' },
-      { name: 'DB Bench Press / Machine Chest Press',       sets: '3–4', reps: '6–10', note: 'Neutral or semi-neutral grip' },
-      { name: 'Chest-supported Row',                        sets: '3–4', reps: '8–12', note: 'Pause at contraction' },
-      { name: 'Romanian Deadlift',                          sets: '3',   reps: '6–10', note: 'Hips back, ribs down' },
-      { name: 'Rear-foot-elevated Split Squat',             sets: '2–3', reps: '8–12 /side', note: 'Moderate load' },
-      { name: 'Cable Lateral Raise',                        sets: '2–3', reps: '12–15', note: 'Scapula controlled' },
-      { name: 'Pallof Press / Dead Bug',                    sets: '2–3', reps: '8–12', note: 'Anti-rotation focus' },
-      { name: 'Bike/Rower Finisher',                        sets: '1',   reps: '6–8 min', note: '30 s hard / 60 s easy' },
+      { name: 'Trap-bar Deadlift / Conventional Deadlift', sets: '4', reps: '5–6',  note: 'Heaviest lift — do it fresh. No grinders. Busy → RDL 4×8' },
+      { name: 'Lat Pulldown / Assisted Chin-up',           sets: '4', reps: '6–10', note: 'Full stretch, no swing — your V-taper builder' },
+      { name: 'Rear-foot-elevated Split Squat',            sets: '3', reps: '8–10 /side', note: 'Quads, glutes & stability. Busy → Leg Press' },
+      { name: 'Incline DB Press / Machine Chest Press',    sets: '4', reps: '6–10', note: 'Upper chest — shoulder-friendly pressing' },
+      { name: 'Cable Lateral Raise',                       sets: '4', reps: '12–20', note: 'Biggest lever for the wide look. Strict, push hard' },
+      { name: 'EZ-bar / Cable Curl',                       sets: '3', reps: '10–15', note: 'Direct biceps. Controlled, no body swing' },
+      { name: 'Sled Push / Bike Intervals',               sets: '1', reps: '6–8 min', note: 'Optional finisher — first thing to cut if tired' },
     ]
   },
   B: {
     label: 'Session B',
-    focus: 'Deadlift · Press · Pull',
+    focus: 'Press · Quads · Pull',
     exercises: [
-      { name: 'Trap-bar Deadlift / Conventional Deadlift', sets: '3–4', reps: '4–6',  note: 'Crisp reps, no grinders' },
-      { name: 'Incline DB Press / Landmine Press',         sets: '3–4', reps: '6–10', note: 'Shoulder-friendly pressing' },
-      { name: 'Lat Pulldown / Assisted Chin-up',           sets: '3–4', reps: '6–10', note: 'Full stretch' },
-      { name: 'Leg Press / Hack Squat',                    sets: '3',   reps: '8–12', note: 'Quads hard' },
-      { name: 'Seated Hamstring Curl',                     sets: '2–3', reps: '10–15', note: 'Full squeeze' },
-      { name: 'Face Pull / Cable Y-raise',                 sets: '2–3', reps: '12–15', note: 'Posture bias' },
-      { name: 'Farmer Carry',                              sets: '3',   reps: '30–40 m', note: 'Ribcage stacked' },
-      { name: 'Easy Cardio Cooldown',                      sets: '1',   reps: '5–10 min', note: 'Nose-breathing pace' },
+      { name: 'Incline DB Press / Machine Chest Press', sets: '4', reps: '6–10', note: 'Lead fresh — upper chest focus' },
+      { name: 'Lat Pulldown / Assisted Chin-up',        sets: '4', reps: '8–12', note: 'Second back hit of the week. No bent-over rows' },
+      { name: 'Leg Press / Hack Squat',                 sets: '4', reps: '8–12', note: 'Quad volume that spares the spine' },
+      { name: 'Seated Hamstring Curl',                  sets: '3', reps: '10–12', note: 'Balances the quad work. Full squeeze' },
+      { name: 'Cable Lateral Raise',                    sets: '4', reps: '12–20', note: 'Delts again — worth hitting every day' },
+      { name: 'Rope Pressdown / Overhead Triceps Ext.', sets: '3', reps: '10–15', note: 'Direct triceps for arm definition' },
+      { name: 'Face Pull / Cable Y-raise',              sets: '3', reps: '12–15', note: 'Posture + rear delt — keeps your shoulders healthy' },
     ]
   },
   C: {
     label: 'Session C',
-    focus: 'Glutes · Push · Arms',
+    focus: 'Pump · Arms · Delts',
     exercises: [
-      { name: 'Goblet Squat / Front Squat',           sets: '3',   reps: '8–10', note: 'Quality over load' },
-      { name: 'Hip Thrust / 45° Back Extension',       sets: '3',   reps: '8–12', note: 'Glute focus' },
-      { name: 'One-arm Cable Row / Low Row',           sets: '3',   reps: '8–12', note: 'Scapular control' },
-      { name: 'Push-up Progression / Machine Press',   sets: '3',   reps: '8–15', note: 'Leave 1–2 reps in reserve' },
-      { name: 'Walking Lunge',                         sets: '2–3', reps: '10–12 /side', note: 'Light to moderate' },
-      { name: 'Cable Curl superset Rope Pressdown',    sets: '2–3', reps: '10–15 each', note: 'Optional arm volume' },
-      { name: 'Sled Push / Bike Intervals',            sets: '1',   reps: '8–10 min', note: 'Short, hard, low skill' },
+      { name: 'Leg Press / Hack Squat',                 sets: '3', reps: '10–12', note: 'Quads — bonus-day volume. Busy → Split Squat' },
+      { name: 'Incline DB Press / Machine Chest Press', sets: '3', reps: '8–12', note: '3rd chest hit, shoulder-friendly' },
+      { name: 'Lat Pulldown / Assisted Chin-up',        sets: '3', reps: '8–12', note: 'Back again. Full stretch' },
+      { name: 'Cable Lateral Raise',                    sets: '3', reps: '12–20', note: 'Delts a 3rd time — low fatigue, big payoff' },
+      { name: 'Cable Curl superset Rope Pressdown',     sets: '3', reps: '10–15 each', note: 'Direct arms — biceps + triceps for definition' },
+      { name: 'Face Pull / Cable Y-raise',              sets: '3', reps: '12–15', note: 'Posture + rear delt — shoulder health' },
     ]
   }
 };
@@ -81,11 +90,11 @@ const RUNNING_PHASES = [
 
 // ─── Weekly Schedule ──────────────────────────────────────────────────────────
 const WEEKLY_SCHEDULE = [
-  { day: 'Monday',    gym: 'A', run: null,        note: '8–10 min post-lift conditioning' },
+  { day: 'Monday',    gym: 'A', run: null,        note: 'Hinge day — do it fresh' },
   { day: 'Tuesday',   gym: null, run: 'Easy',     note: 'Mobility routine' },
-  { day: 'Wednesday', gym: 'B', run: null,        note: 'Walks / steps / mobility' },
+  { day: 'Wednesday', gym: 'B', run: null,        note: 'Press/quad day' },
   { day: 'Thursday',  gym: null, run: 'Quality',  note: 'Mobility routine' },
-  { day: 'Friday',    gym: 'C', run: null,        note: 'Optional — rest if only doing 2 sessions' },
+  { day: 'Friday',    gym: 'C', run: null,         note: 'Bonus session — do it if fresh, else rest' },
   { day: 'Saturday',  gym: null, run: 'Easy',     note: 'Parkrun-style easy effort' },
   { day: 'Sunday',    gym: null, run: null,        note: 'Rest · long walk · weekly review' },
 ];

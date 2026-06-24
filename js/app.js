@@ -325,7 +325,7 @@ function renderTrainContent() {
 
     el.innerHTML = `
       <div class="seg">
-        ${['A','B','C'].map(s=>`<button class="sbtn ${activeSession===s?'active':''}" onclick="setSession('${s}')">Session ${s}</button>`).join('')}
+        ${Object.keys(SESSIONS).map(s=>`<button class="sbtn ${activeSession===s?'active':''}" onclick="setSession('${s}')">Session ${s}</button>`).join('')}
       </div>
 
       <div class="card">
