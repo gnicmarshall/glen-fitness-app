@@ -23,6 +23,21 @@ function save() { state.updatedAt = Date.now(); store.set('fitplan_v2', state); 
 /* ─── Workout-log model (per-set weight/reps) ─────────────────────────────────── */
 function parseSetCount(setsStr) { const m = String(setsStr).match(/\d+/); return m ? Math.max(1, parseInt(m[0])) : 3; }
 function blankSets(ex) { return Array.from({length: parseSetCount(ex.sets)}, () => ({ w:'', r:'', done:false })); }
+
+// Conditioning moves (sled, bike, carries, planks…) aren't weight×reps — they're
+// time or distance. For these we drop the kg column and just track the value.
+// Detected by exercise name or by the target unit (min / sec / m).
+function exMeasure(name, reps) {
+  const nm = String(name || '').toLowerCase();
+  const r  = String(reps || '').toLowerCase();
+  const cardioName = /\b(sled|bike|rower|rowing|treadmill|cardio|conditioning|interval|carry|farmer|run|jog|walk|plank|hang|hold|skip rope|jump rope)\b/.test(nm);
+  let label = null;
+  if (/min/.test(r)) label = 'Min';
+  else if (/sec/.test(r)) label = 'Sec';
+  else if (/\bm\b|metre|meter/.test(r)) label = 'Meters';
+  const noload = cardioName || label !== null;
+  return { noload, label: label || 'Reps' };
+}
 function ensureSession(date, session) {
   if (!state.workoutLog[date]) state.workoutLog[date] = {};
   let s = state.workoutLog[date][session];
@@ -62,7 +77,7 @@ function doneSetsFor(sd, ei) {
     .map(s => ({ w: parseFloat(s.w) || 0, r: parseInt(s.r) || 0 }));
 }
 // Render a set list as "60×8, 60×8, 65×6".
-function fmtSets(arr) { return arr.map(s => `${s.w || '–'}×${s.r || '–'}`).join(', '); }
+function fmtSets(arr) { return arr.map(s => s.w ? `${s.w}×${s.r || '–'}` : `${s.r || '–'}`).join(', '); }
 // Heaviest working-set weight in a list (drives the progression chart).
 function topWeight(arr) { return arr.reduce((m, s) => Math.max(m, s.w), 0); }
 // Total volume (Σ weight × reps) of a set list.
@@ -376,14 +391,22 @@ function renderTrainContent() {
             </div>
           </div>
           ${lastHtml}
-          <div class="setgrid-head"><span>Set</span><span>kg</span><span>Reps</span><span>✓</span></div>
+          ${(() => { const m = exMeasure(dispName, ex.reps); return m.noload
+            ? `<div class="setgrid-head noload"><span>Set</span><span>${m.label}</span><span>✓</span></div>
+          ${sets.map((s,si)=>`
+            <div class="setrow noload ${s.done?'done':''}">
+              <div class="setn">${si+1}</div>
+              <input class="setinp" type="number" inputmode="numeric" placeholder="–" value="${s.r}" oninput="setField('${d}','${activeSession}',${ei},${si},'r',this.value)">
+              <button class="setck ${s.done?'done':''}" onclick="toggleSet('${d}','${activeSession}',${ei},${si})"></button>
+            </div>`).join('')}`
+            : `<div class="setgrid-head"><span>Set</span><span>kg</span><span>Reps</span><span>✓</span></div>
           ${sets.map((s,si)=>`
             <div class="setrow ${s.done?'done':''}">
               <div class="setn">${si+1}</div>
               <input class="setinp" type="number" inputmode="decimal" placeholder="–" value="${s.w}" oninput="setField('${d}','${activeSession}',${ei},${si},'w',this.value)">
               <input class="setinp" type="number" inputmode="numeric" placeholder="–" value="${s.r}" oninput="setField('${d}','${activeSession}',${ei},${si},'r',this.value)">
               <button class="setck ${s.done?'done':''}" onclick="toggleSet('${d}','${activeSession}',${ei},${si})"></button>
-            </div>`).join('')}
+            </div>`).join('')}`; })()}
           <button class="addset" onclick="addSet('${d}','${activeSession}',${ei})">+ Add set</button>
         </div>`;
       }).join('')}
