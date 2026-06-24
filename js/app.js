@@ -587,7 +587,8 @@ function openSwap(ei) {
   const alts = ex.name.split('/').map(s => s.trim()).filter(Boolean);
   document.getElementById('swap-body').innerHTML = `
     <div style="font-size:13px;color:var(--text2);margin-bottom:14px;line-height:1.55">Couldn't do this one? Browse the library, pick what you actually did, type your own, or skip it. Only changes today's session.</div>
-    <button class="btn block" style="margin-bottom:16px" onclick="openLibrary(${ei})">🔍 Browse exercise library</button>
+    <button class="btn block" style="margin-bottom:9px" onclick="openLibrary(${ei})">🔍 Browse exercise library</button>
+    <button class="btn ghost block" style="margin-bottom:16px" onclick="coachSwap(${ei})">🤖 Ask coach for an alternative</button>
     ${alts.length>1 ? `<div class="swaplbl">Listed alternatives</div>
       <div class="swapchips">${alts.map(a=>`<button class="swapchip ${a===current?'active':''}" onclick="applySwap('${a.replace(/'/g,"\\'")}')">${a}</button>`).join('')}</div>`:''}
     <div class="swaplbl">Or type your own</div>
@@ -619,6 +620,13 @@ function restoreExercise(ei) {
   delete sl.skipped[ei]; delete sl.names[ei]; save(); closeSwap(); renderTrainContent();
 }
 function closeSwap() { document.getElementById('swap-modal').classList.remove('open'); swapEi = null; }
+function coachSwap(ei) {
+  const sl = ensureSession(today(), activeSession);
+  const nm = (sl.names && sl.names[ei]) || SESSIONS[activeSession].exercises[ei].name;
+  closeSwap();
+  if (window.openCoach) openCoach(`Swap "${nm}" — suggest a shoulder-friendly alternative I can do. Reason: `);
+  else alert('Coach not loaded — reload the app.');
+}
 
 /* ─── Exercise library (free-exercise-db: 870+ exercises with photos) ──────────── */
 const EXDB_URL = 'https://cdn.jsdelivr.net/gh/yuhonas/free-exercise-db@main/dist/exercises.json';
