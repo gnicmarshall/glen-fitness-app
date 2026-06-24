@@ -335,7 +335,8 @@ function renderTrainContent() {
     const isSkip = ei => slog.skipped && slog.skipped[ei];
     const totalSets = slog.sets.reduce((n,a,ei)=>n+(isSkip(ei)?0:a.length),0);
     const doneSets  = slog.sets.reduce((n,a,ei)=>n+(isSkip(ei)?0:a.filter(s=>s.done).length),0);
-    const volume    = slog.sets.reduce((n,a,ei)=>n+(isSkip(ei)?0:a.reduce((m,s)=>m+(s.done?(parseFloat(s.w)||0)*(parseFloat(s.r)||0):0),0)),0);
+    const isReps    = ei => exMeasure((slog.names&&slog.names[ei])||sess.exercises[ei].name, sess.exercises[ei].reps).label === 'Reps';
+    const volume    = slog.sets.reduce((n,a,ei)=>n+((isSkip(ei)||!isReps(ei))?0:a.reduce((m,s)=>m+(s.done?(parseFloat(s.w)||0)*(parseFloat(s.r)||0):0),0)),0);
     const rest = state.restSec||90;
 
     el.innerHTML = `
@@ -391,22 +392,14 @@ function renderTrainContent() {
             </div>
           </div>
           ${lastHtml}
-          ${(() => { const m = exMeasure(dispName, ex.reps); return m.noload
-            ? `<div class="setgrid-head noload"><span>Set</span><span>${m.label}</span><span>✓</span></div>
-          ${sets.map((s,si)=>`
-            <div class="setrow noload ${s.done?'done':''}">
-              <div class="setn">${si+1}</div>
-              <input class="setinp" type="number" inputmode="numeric" placeholder="–" value="${s.r}" oninput="setField('${d}','${activeSession}',${ei},${si},'r',this.value)">
-              <button class="setck ${s.done?'done':''}" onclick="toggleSet('${d}','${activeSession}',${ei},${si})"></button>
-            </div>`).join('')}`
-            : `<div class="setgrid-head"><span>Set</span><span>kg</span><span>Reps</span><span>✓</span></div>
+          <div class="setgrid-head"><span>Set</span><span>kg</span><span>${exMeasure(dispName, ex.reps).label}</span><span>✓</span></div>
           ${sets.map((s,si)=>`
             <div class="setrow ${s.done?'done':''}">
               <div class="setn">${si+1}</div>
               <input class="setinp" type="number" inputmode="decimal" placeholder="–" value="${s.w}" oninput="setField('${d}','${activeSession}',${ei},${si},'w',this.value)">
               <input class="setinp" type="number" inputmode="numeric" placeholder="–" value="${s.r}" oninput="setField('${d}','${activeSession}',${ei},${si},'r',this.value)">
               <button class="setck ${s.done?'done':''}" onclick="toggleSet('${d}','${activeSession}',${ei},${si})"></button>
-            </div>`).join('')}`; })()}
+            </div>`).join('')}
           <button class="addset" onclick="addSet('${d}','${activeSession}',${ei})">+ Add set</button>
         </div>`;
       }).join('')}
@@ -1050,7 +1043,7 @@ function renderHistoryContent() {
             let doneSets=0, totalSets=0, vol=0, fin=false, detail='';
             if (Array.isArray(sdata)) { doneSets = sdata.filter(Boolean).length; totalSets = SESSIONS[sess].exercises.length; }
             else if (sdata && sdata.sets) {
-              sdata.sets.forEach((a,ei)=>{ if (sdata.skipped && sdata.skipped[ei]) return; a.forEach(s=>{ totalSets++; if (s.done){ doneSets++; vol += (parseFloat(s.w)||0)*(parseFloat(s.r)||0); } }); });
+              sdata.sets.forEach((a,ei)=>{ if (sdata.skipped && sdata.skipped[ei]) return; const ex = SESSIONS[sess].exercises[ei]; const repBased = !ex || exMeasure((sdata.names&&sdata.names[ei])||ex.name, ex.reps).label === 'Reps'; a.forEach(s=>{ totalSets++; if (s.done){ doneSets++; if (repBased) vol += (parseFloat(s.w)||0)*(parseFloat(s.r)||0); } }); });
               fin = !!sdata.finishedAt;
               const lines = [];
               SESSIONS[sess].exercises.forEach((ex,ei)=>{
