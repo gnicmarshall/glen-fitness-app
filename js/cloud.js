@@ -159,24 +159,39 @@
   window.renderCloudCard = function () {
     const el = document.getElementById('cloud-card');
     if (!el) return;
-    if (currentUser) {
-      const name = currentUser.displayName || currentUser.email || 'Signed in';
-      const st = _status === 'synced' ? '✓ Backed up &amp; syncing'
-               : _status === 'syncing' ? 'Syncing…'
-               : _status === 'error' ? '⚠ Sync error — will retry'
-               : 'Connected';
+    if (!currentUser) {
+      // Not signed in — make it clearly a warning so a session isn't trained un-backed-up.
       el.innerHTML =
-        '<div class="cloudrow">' +
-          '<div class="cloudico ok">☁</div>' +
-          '<div class="cloudtxt"><div class="cloudnm">' + name + '</div><div class="cloudst">' + st + '</div></div>' +
+        '<div class="cloudrow warn">' +
+          '<div class="cloudico warn">⚠</div>' +
+          '<div class="cloudtxt"><div class="cloudnm warn">Not backed up</div>' +
+            '<div class="cloudst">Sign in so your workouts save & survive a phone wipe</div></div>' +
+          '<button class="btn sm" onclick="signInCloud()">Sign in</button>' +
+        '</div>';
+      return;
+    }
+    const name = currentUser.displayName || currentUser.email || 'Signed in';
+    if (_status === 'synced') {
+      el.innerHTML =
+        '<div class="cloudrow ok">' +
+          '<div class="cloudico ok">✓</div>' +
+          '<div class="cloudtxt"><div class="cloudnm ok">Backed up &amp; syncing</div>' +
+            '<div class="cloudst">' + name + ' · safe across your devices</div></div>' +
           '<button class="btn ghost sm" onclick="signOutCloud()">Sign out</button>' +
         '</div>';
-    } else {
+    } else if (_status === 'error') {
+      el.innerHTML =
+        '<div class="cloudrow warn">' +
+          '<div class="cloudico warn">⚠</div>' +
+          '<div class="cloudtxt"><div class="cloudnm warn">Sync hiccup — retrying</div>' +
+            '<div class="cloudst">' + name + ' · your data is still safe on this phone</div></div>' +
+          '<button class="btn ghost sm" onclick="signOutCloud()">Sign out</button>' +
+        '</div>';
+    } else { // syncing / connecting
       el.innerHTML =
         '<div class="cloudrow">' +
           '<div class="cloudico">☁</div>' +
-          '<div class="cloudtxt"><div class="cloudnm">Back up &amp; sync</div><div class="cloudst">Sign in to save across all your devices</div></div>' +
-          '<button class="btn sm" onclick="signInCloud()">Sign in</button>' +
+          '<div class="cloudtxt"><div class="cloudnm">Syncing…</div><div class="cloudst">' + name + '</div></div>' +
         '</div>';
     }
   };
