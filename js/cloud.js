@@ -53,11 +53,60 @@
     try { return JSON.parse(d.json); } catch (e) { console.warn('[cloud] bad remote json', e); return null; }
   }
 
-  // Replace local state with a remote copy and re-render the active screen.
+  // How much real logged work a session holds — used to pick the richer copy
+  // when merging, so an emptier remote copy can never wipe a logged one.
+  function workScore(sd) {
+    if (!sd) return -1;
+    if (Array.isArray(sd)) return sd.filter(Boolean).length;
+    if (!sd.sets) return sd.finishedAt ? 1 : 0;
+    let n = sd.finishedAt ? 1000 : 0;
+    sd.sets.forEach(arr => (arr || []).forEach(s => {
+      if (s && (s.done || (s.w !== '' && s.w != null) || (s.r !== '' && s.r != null))) n++;
+    }));
+    return n;
+  }
+  // Union two workout logs by date+session, keeping the richer session each time.
+  function mergeWorkoutLogs(local, remote) {
+    const out = {};
+    const dates = new Set([...Object.keys(local || {}), ...Object.keys(remote || {})]);
+    dates.forEach(d => {
+      const L = (local && local[d]) || {}, R = (remote && remote[d]) || {};
+      const day = {};
+      new Set([...Object.keys(L), ...Object.keys(R)]).forEach(s => {
+        day[s] = workScore(L[s]) >= workScore(R[s]) ? L[s] : R[s];
+      });
+      out[d] = day;
+    });
+    return out;
+  }
+  // Union date-keyed log objects (foodLog, mobilityLog), keeping the fuller day.
+  function mergeDateArrays(local, remote) {
+    const out = {};
+    new Set([...Object.keys(local || {}), ...Object.keys(remote || {})]).forEach(d => {
+      const la = (local && local[d]) || [], rb = (remote && remote[d]) || [];
+      out[d] = la.length >= rb.length ? la : rb;
+    });
+    return out;
+  }
+  // Union arrays of {date,…} (weightLog, waistLog) by date.
+  function mergeByDate(local, remote) {
+    const map = {};
+    (remote || []).forEach(x => { if (x && x.date) map[x.date] = x; });
+    (local || []).forEach(x => { if (x && x.date) map[x.date] = x; });
+    return Object.values(map).sort((p, q) => String(p.date).localeCompare(String(q.date)));
+  }
+
+  // Merge a remote copy into local state — NON-destructively for logged data, so
+  // sync can never delete a workout/meal/measurement that exists on either side.
   function adoptRemote(data) {
     if (!data) return;
     applyingRemote = true;
-    Object.keys(data).forEach(k => { state[k] = data[k]; });
+    Object.keys(data).forEach(k => {
+      if (k === 'workoutLog') state.workoutLog = mergeWorkoutLogs(state.workoutLog, data.workoutLog);
+      else if (k === 'foodLog' || k === 'mobilityLog') state[k] = mergeDateArrays(state[k], data[k]);
+      else if (k === 'weightLog' || k === 'waistLog') state[k] = mergeByDate(state[k], data[k]);
+      else state[k] = data[k];   // settings & scalars: remote wins
+    });
     store.set('fitplan_v2', state);
     applyingRemote = false;
     if (typeof renders !== 'undefined') renders[_activeTab]?.();
@@ -70,21 +119,15 @@
     if (!user) { setStatus('signedout'); return; }
 
     setStatus('syncing');
-    // One-off reconcile: whichever copy (local vs cloud) is newer wins.
+    // One-off reconcile: MERGE local + cloud (union, never delete), then push the
+    // merged superset back so the cloud converges and can't re-clobber a device.
     docRef(user.uid).get().then(snap => {
-      const remote = snap.exists ? snap.data() : null;
-      const remoteData = parseRemote(remote);
-      const localUpdated = state.updatedAt || 0;
-      const remoteUpdated = (remote && remote.updatedAt) || 0;
-
-      if (remoteData && remoteUpdated >= localUpdated) {
-        adoptRemote(remoteData);
-      } else {
-        state.updatedAt = state.updatedAt || Date.now();
-        docRef(user.uid).set({ json: JSON.stringify(state), updatedAt: state.updatedAt })
-          .then(() => setStatus('synced'))
-          .catch(e => { console.warn('[cloud] initial push failed', e); setStatus('error'); });
-      }
+      const remoteData = parseRemote(snap.exists ? snap.data() : null);
+      if (remoteData) adoptRemote(remoteData);
+      state.updatedAt = Date.now();
+      docRef(user.uid).set({ json: JSON.stringify(state), updatedAt: state.updatedAt })
+        .then(() => setStatus('synced'))
+        .catch(e => { console.warn('[cloud] merge push failed', e); setStatus('error'); });
       setStatus('synced');
 
       // Live updates from other devices.
