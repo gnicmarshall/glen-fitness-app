@@ -208,17 +208,22 @@ function renderHome() {
       </div>`;
     if (plan.run) todayHtml += `
       <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)">
-        <div style="width:40px;height:40px;border-radius:12px;background:rgba(0,230,118,0.12);display:flex;align-items:center;justify-content:center;font-size:20px">🏃</div>
+        <div style="width:40px;height:40px;border-radius:12px;background:rgba(16,185,129,0.12);display:flex;align-items:center;justify-content:center;font-size:20px">🏃</div>
         <div><div style="font-weight:700;font-size:15px">${plan.run} Run</div><div style="font-size:13px;color:var(--text3)">${plan.note}</div></div>
-        <button class="btn ghost sm" style="margin-left:auto;color:var(--green);border-color:rgba(0,230,118,0.3)" onclick="navigate('train')">Go</button>
+        <button class="btn ghost sm" style="margin-left:auto;color:var(--green);border-color:rgba(16,185,129,0.3)" onclick="navigate('train')">Go</button>
+      </div>`;
+    // Mobility is daily (shoulder work) — it stays even on full rest days.
+    if (!plan.gym && !plan.run) todayHtml += `
+      <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)">
+        <div style="width:40px;height:40px;border-radius:12px;background:var(--bg2);display:flex;align-items:center;justify-content:center;font-size:20px">😴</div>
+        <div><div style="font-weight:700;font-size:15px">Rest day</div><div style="font-size:13px;color:var(--text3)">${plan.note}</div></div>
       </div>`;
     todayHtml += `
       <div style="display:flex;align-items:center;gap:10px;padding:10px 0">
         <div style="width:40px;height:40px;border-radius:12px;background:rgba(255,107,53,0.1);display:flex;align-items:center;justify-content:center;font-size:20px">🧘</div>
-        <div><div style="font-weight:700;font-size:15px">Mobility Routine</div><div style="font-size:13px;color:var(--text3)">8 drills · ~12 min</div></div>
+        <div><div style="font-weight:700;font-size:15px">Mobility Routine</div><div style="font-size:13px;color:var(--text3)">8 drills · ~12 min — daily shoulder work</div></div>
         <button class="btn ghost sm" style="margin-left:auto;color:var(--orange);border-color:rgba(255,107,53,0.3)" onclick="navigate('train')">Go</button>
       </div>`;
-    if (!plan.gym && !plan.run) todayHtml = `<div style="padding:12px 0;color:var(--text2);font-size:15px">Rest day — walk, recover, prep meals 🛌</div>`;
   }
 
   document.getElementById('home-body').innerHTML = `
@@ -226,19 +231,19 @@ function renderHome() {
     <div class="hero">
       <div style="display:flex;align-items:flex-start;justify-content:space-between">
         <div>
-          <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:5px">Week ${wk} of 12</div>
+          <div style="font-size:11px;font-weight:700;color:rgba(255,255,255,0.55);text-transform:uppercase;letter-spacing:1px;margin-bottom:5px">Week ${wk} of 12</div>
           <div style="font-size:28px;font-weight:900;letter-spacing:-0.8px;line-height:1.1">Hey Glen 👋</div>
-          <div style="font-size:13px;color:var(--text3);margin-top:5px">${dow} · ${fmtFull(d)}</div>
+          <div style="font-size:13px;color:rgba(255,255,255,0.6);margin-top:5px">${dow} · ${fmtFull(d)}</div>
         </div>
         <div style="text-align:right">
           <div style="font-size:36px;font-weight:900;letter-spacing:-1.5px;color:var(--cyan);line-height:1">${latestW}</div>
-          <div style="font-size:11px;color:var(--text3);font-weight:600;margin-top:3px;text-transform:uppercase;letter-spacing:0.4px">kg now</div>
+          <div style="font-size:11px;color:rgba(255,255,255,0.55);font-weight:600;margin-top:3px;text-transform:uppercase;letter-spacing:0.4px">kg now</div>
           ${parseFloat(lost)>0?`<div style="font-size:12px;color:var(--green);font-weight:700;margin-top:3px">▼ ${lost} kg lost</div>`:''}
         </div>
       </div>
       <div class="wd">${dots}</div>
       <div style="margin-top:12px">
-        <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text3);font-weight:600;margin-bottom:5px">
+        <div style="display:flex;justify-content:space-between;font-size:11px;color:rgba(255,255,255,0.6);font-weight:600;margin-bottom:5px">
           <span>${toGo} kg to go</span><span>${pctDone}%</span>
         </div>
         <div class="pbb">
@@ -249,7 +254,7 @@ function renderHome() {
 
     <div class="card">
       <div class="lbl">Today's Plan</div>
-      ${todayHtml||'<div style="color:var(--text3);font-size:14px;padding:6px 0">Rest day — walk, recover, prep meals 🛌</div>'}
+      ${todayHtml}
     </div>
 
     <div class="sg">
@@ -287,7 +292,7 @@ function renderHome() {
       <div class="mrc">
         ${ringHTML(Math.min(1,kcalToday/t.kcal),'var(--orange)',Math.round(kcalToday/t.kcal*100)+'%','kcal')}
         <div class="mrl">
-          ${pbar('Protein',protToday,t.protein,'var(--purple)')}
+          ${pbar('Protein',protToday,t.protein,'var(--green)')}
           ${pbar('Calories',kcalToday,t.kcal,'var(--orange)',' kcal')}
         </div>
       </div>
@@ -834,7 +839,7 @@ function renderEatContent() {
         <div class="mrc">
           ${ringHTML(Math.min(1,totalKcal/t.kcal),'var(--orange)',Math.round(totalKcal/t.kcal*100)+'%','kcal')}
           <div class="mrl">
-            ${pbar('Protein', totalProt, t.protein, 'var(--purple)')}
+            ${pbar('Protein', totalProt, t.protein, 'var(--green)')}
             ${pbar('Calories', totalKcal, t.kcal, 'var(--orange)', ' kcal')}
           </div>
         </div>
@@ -847,6 +852,13 @@ function renderEatContent() {
       </div>
       <div class="card">
         <div class="lbl">Log Food</div>
+        ${(rf=>rf.length?`
+        <div class="qa-chips">${rf.map((f,i)=>`
+          <button class="qa-chip" onclick="quickAddFood(${i})">
+            <span class="qa-nm">${f.name}</span>
+            <span class="qa-meta">${f.kcal} kcal · ${f.protein}g</span>
+          </button>`).join('')}
+        </div>`:'')(recentFoods())}
         <input class="inp" id="food-name" placeholder="Food or meal name" type="text" style="width:100%;margin-bottom:8px">
         <div style="display:flex;gap:8px;margin-bottom:10px">
           <input class="inp" id="food-kcal" placeholder="kcal" type="number" inputmode="decimal">
@@ -912,14 +924,14 @@ function renderEatContent() {
       <div class="card">
         <div class="lbl">Training Day</div>
         <div style="font-size:24px;font-weight:900;color:var(--orange);margin-bottom:12px">2,450–2,650 kcal</div>
-        ${pbar('Protein', 195, 210, 'var(--purple)')}
+        ${pbar('Protein', 195, 210, 'var(--green)')}
         ${pbar('Carbohydrate', 260, 300, 'var(--cyan)')}
         ${pbar('Fat', 73, 80, 'var(--orange)')}
       </div>
       <div class="card">
         <div class="lbl">Rest / Easy Day</div>
         <div style="font-size:24px;font-weight:900;color:var(--cyan);margin-bottom:12px">2,200–2,350 kcal</div>
-        ${pbar('Protein', 195, 210, 'var(--purple)')}
+        ${pbar('Protein', 195, 210, 'var(--green)')}
         ${pbar('Carbohydrate', 180, 220, 'var(--cyan)')}
         ${pbar('Fat', 78, 85, 'var(--orange)')}
       </div>
@@ -951,6 +963,33 @@ function logFood() {
   const d=today();
   if (!state.foodLog[d]) state.foodLog[d]=[];
   state.foodLog[d].push({name,kcal,protein:prot});
+  save(); renderEat();
+}
+
+// Meals repeat — surface the most-logged foods from the last 14 days as
+// one-tap re-add chips, so daily logging doesn't mean retyping kcal/protein.
+let _recentFoods = [];
+function recentFoods() {
+  const dates = Object.keys(state.foodLog).sort((a,b)=>b.localeCompare(a)).slice(0,14);
+  const seen = {};
+  dates.forEach((ds,di)=>{ (state.foodLog[ds]||[]).forEach(f=>{
+    if (!f || !f.name) return;
+    const k = f.name.trim().toLowerCase();
+    if (!seen[k]) seen[k] = { name:f.name.trim(), kcal:f.kcal, protein:f.protein||0, count:0, rec:di };
+    seen[k].count++;
+  });});
+  const todayNames = new Set((state.foodLog[today()]||[]).map(f=>f.name.trim().toLowerCase()));
+  _recentFoods = Object.values(seen)
+    .filter(f=>!todayNames.has(f.name.toLowerCase()))
+    .sort((a,b)=>b.count-a.count || a.rec-b.rec)
+    .slice(0,8);
+  return _recentFoods;
+}
+function quickAddFood(i) {
+  const f=_recentFoods[i]; if (!f) return;
+  const d=today();
+  if (!state.foodLog[d]) state.foodLog[d]=[];
+  state.foodLog[d].push({name:f.name,kcal:f.kcal,protein:f.protein});
   save(); renderEat();
 }
 function deleteFood(idx){
