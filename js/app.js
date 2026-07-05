@@ -859,6 +859,12 @@ function renderEatContent() {
             <span class="qa-meta">${f.kcal} kcal · ${f.protein}g</span>
           </button>`).join('')}
         </div>`:'')(recentFoods())}
+        <div class="qa-chips">${QUICK_DRINKS.map((f,i)=>`
+          <button class="qa-chip" onclick="quickAddDrink(${i})">
+            <span class="qa-nm">${f.emoji} ${f.name}</span>
+            <span class="qa-meta">${f.kcal} kcal</span>
+          </button>`).join('')}
+        </div>
         <input class="inp" id="food-name" placeholder="Food or meal name" type="text" style="width:100%;margin-bottom:8px">
         <div style="display:flex;gap:8px;margin-bottom:10px">
           <input class="inp" id="food-kcal" placeholder="kcal" type="number" inputmode="decimal">
@@ -966,6 +972,20 @@ function logFood() {
   save(); renderEat();
 }
 
+// Always-there one-tap drinks — beer is budgeted, not banned. Fixed chips so
+// Friday pints get logged instead of forgotten.
+const QUICK_DRINKS = [
+  { name: 'Pint of beer',   kcal: 250, protein: 0, emoji: '🍺' },
+  { name: 'Can/bottle of beer', kcal: 150, protein: 0, emoji: '🥫' },
+];
+function quickAddDrink(i) {
+  const f = QUICK_DRINKS[i]; if (!f) return;
+  const d = today();
+  if (!state.foodLog[d]) state.foodLog[d] = [];
+  state.foodLog[d].push({ name: f.name, kcal: f.kcal, protein: f.protein });
+  save(); renderEat();
+}
+
 // Meals repeat — surface the most-logged foods from the last 14 days as
 // one-tap re-add chips, so daily logging doesn't mean retyping kcal/protein.
 let _recentFoods = [];
@@ -979,8 +999,9 @@ function recentFoods() {
     seen[k].count++;
   });});
   const todayNames = new Set((state.foodLog[today()]||[]).map(f=>f.name.trim().toLowerCase()));
+  const drinkNames = new Set(QUICK_DRINKS.map(f=>f.name.toLowerCase()));
   _recentFoods = Object.values(seen)
-    .filter(f=>!todayNames.has(f.name.toLowerCase()))
+    .filter(f=>!todayNames.has(f.name.toLowerCase()) && !drinkNames.has(f.name.toLowerCase()))
     .sort((a,b)=>b.count-a.count || a.rec-b.rec)
     .slice(0,8);
   return _recentFoods;
