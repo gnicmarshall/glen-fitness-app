@@ -220,9 +220,9 @@ function renderHome() {
       </div>`;
     todayHtml += `
       <div style="display:flex;align-items:center;gap:10px;padding:10px 0">
-        <div style="width:40px;height:40px;border-radius:12px;background:rgba(255,107,53,0.1);display:flex;align-items:center;justify-content:center;font-size:20px">🧘</div>
+        <div style="width:40px;height:40px;border-radius:12px;background:rgba(234,88,12,0.1);display:flex;align-items:center;justify-content:center;font-size:20px">🧘</div>
         <div><div style="font-weight:700;font-size:15px">Mobility Routine</div><div style="font-size:13px;color:var(--text3)">8 drills · ~12 min — daily shoulder work</div></div>
-        <button class="btn ghost sm" style="margin-left:auto;color:var(--orange);border-color:rgba(255,107,53,0.3)" onclick="navigate('train')">Go</button>
+        <button class="btn ghost sm" style="margin-left:auto;color:var(--orange);border-color:rgba(234,88,12,0.3)" onclick="navigate('train')">Go</button>
       </div>`;
   }
 
@@ -302,8 +302,8 @@ function renderHome() {
     <div class="card">
       <div class="lbl">Daily Supplements</div>
       ${SUPPLEMENTS.map((s,i)=>{
-        const icons=['🧪','🥛','☀️','🐟'];
-        const bgs=['rgba(139,127,255,0.12)','rgba(34,211,238,0.08)','rgba(251,191,36,0.1)','rgba(74,222,128,0.08)'];
+        const icons=['🥩','💊','🐟','🧪'];
+        const bgs=['rgba(234,88,12,0.09)','rgba(14,165,233,0.09)','rgba(251,191,36,0.12)','rgba(16,185,129,0.1)'];
         return `<div class="suprow"><div class="supico" style="background:${bgs[i]}">${icons[i]}</div>
           <div><div class="supnm">${s.name}</div><div class="supd">${s.dose} · ${s.timing}</div></div>
         </div>`;
@@ -406,7 +406,7 @@ function renderTrainContent() {
               <div class="setn">${si+1}</div>
               <input class="setinp" type="number" inputmode="decimal" placeholder="–" value="${s.w}" oninput="setField('${d}','${activeSession}',${ei},${si},'w',this.value)">
               <input class="setinp" type="number" inputmode="numeric" placeholder="–" value="${s.r}" oninput="setField('${d}','${activeSession}',${ei},${si},'r',this.value)">
-              <button class="setck ${s.done?'done':''}" onclick="toggleSet('${d}','${activeSession}',${ei},${si})"></button>
+              <button class="setck ${s.done?'done':''}" aria-label="Mark set ${si+1} done" onclick="toggleSet('${d}','${activeSession}',${ei},${si})"></button>
             </div>`).join('')}
           <button class="addset" onclick="addSet('${d}','${activeSession}',${ei})">+ Add set</button>
         </div>`;
@@ -540,7 +540,7 @@ function renderTrainContent() {
           <div style="padding:9px 0;border-bottom:1px solid var(--border)">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
               <span style="font-weight:800;font-size:15px">Week ${w.week}${w.week===9?' 🔄':''}</span>
-              <span style="font-size:11px;color:${w.week===9?'var(--orange)':'var(--text3)'};font-weight:700;background:${w.week===9?'rgba(255,107,53,0.1)':'var(--bg3)'};padding:3px 8px;border-radius:20px">${w.intensity}</span>
+              <span style="font-size:11px;color:${w.week===9?'var(--orange)':'var(--text3)'};font-weight:700;background:${w.week===9?'rgba(234,88,12,0.1)':'var(--bg3)'};padding:3px 8px;border-radius:20px">${w.intensity}</span>
             </div>
             <div style="font-size:13px;color:var(--text2)">${w.gymFocus}</div>
             <div style="font-size:12px;color:var(--text3);margin-top:2px">${w.notes}</div>
@@ -865,10 +865,10 @@ function renderEatContent() {
             <span class="qa-meta">${f.kcal} kcal</span>
           </button>`).join('')}
         </div>
-        <input class="inp" id="food-name" placeholder="Food or meal name" type="text" style="width:100%;margin-bottom:8px">
+        <input class="inp" id="food-name" placeholder="Food or meal name" type="text" autocomplete="off" spellcheck="false" style="width:100%;margin-bottom:8px">
         <div style="display:flex;gap:8px;margin-bottom:10px">
-          <input class="inp" id="food-kcal" placeholder="kcal" type="number" inputmode="decimal">
-          <input class="inp" id="food-prot" placeholder="protein (g)" type="number" inputmode="decimal">
+          <input class="inp" id="food-kcal" placeholder="kcal" type="number" inputmode="decimal" autocomplete="off">
+          <input class="inp" id="food-prot" placeholder="protein (g)" type="number" inputmode="decimal" autocomplete="off">
         </div>
         <button class="btn block" onclick="logFood()">+ Add Food</button>
       </div>
@@ -880,7 +880,7 @@ function renderEatContent() {
             <div class="fen">${f.name}</div>
             <div class="fek">${f.kcal} kcal</div>
             <div class="fep">${f.protein}g</div>
-            <div class="fed" onclick="deleteFood(${i})">×</div>
+            <button class="fed" aria-label="Delete item" onclick="deleteFood(${i})">×</button>
           </div>`).join('')}
       </div>` : ''}
       <div class="card">
