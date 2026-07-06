@@ -1,12 +1,12 @@
-const CACHE_NAME = 'fitplan-v28';
+const CACHE_NAME = 'fitplan-v29';
 const URLS = [
-  '/glen-fitness-app/',
-  '/glen-fitness-app/index.html',
-  '/glen-fitness-app/css/app.css',
-  '/glen-fitness-app/js/data.js',
-  '/glen-fitness-app/js/app.js',
-  '/glen-fitness-app/js/cloud.js',
-  '/glen-fitness-app/js/coach.js'
+  './',
+  './index.html',
+  './css/app.css',
+  './js/data.js',
+  './js/app.js',
+  './js/cloud.js',
+  './js/coach.js'
 ];
 
 // Activate the new worker immediately instead of waiting for old tabs to close.

@@ -1681,7 +1681,7 @@ const renders = { home:renderHome, train:renderTrain, eat:renderEat, history:ren
 
 window.addEventListener('DOMContentLoaded', () => {
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/glen-fitness-app/sw.js').then(reg => {
+    navigator.serviceWorker.register('sw.js').then(reg => {
       // Poll for a newer worker each time the app is reopened / refocused.
       document.addEventListener('visibilitychange', () => { if (!document.hidden) reg.update(); });
       // Only auto-reload on a genuine *update* (a controller already exists),
