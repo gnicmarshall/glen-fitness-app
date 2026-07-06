@@ -50,7 +50,9 @@ health constraints. Default model `claude-sonnet-4-6`, prompt caching on
 
 ## AI food estimate (`js/app.js` → `aiEstimateFood`)
 "✨ AI" button on the Fuel/Eat tab's Log Food form. Sends the typed food name
-to `claude-fable-5` (with an Opus 4.8 fallback) using the same
+to `claude-sonnet-5` (Glen's choice — accurate and far cheaper than Fable 5
+for this simple estimation task; the Coach stays on `claude-sonnet-4-6`,
+these two are intentionally independent) using the same
 `fitplan_anthropic_key` as the Coach, requests strict `{kcal, protein}` via
 `output_config.format` (JSON schema, no tool use needed), and fills the kcal/
 protein inputs. Small, one-shot call — `output_config.effort: 'low'`.

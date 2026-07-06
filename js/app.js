@@ -984,13 +984,11 @@ async function aiEstimateFood() {
         'content-type': 'application/json',
         'x-api-key': key,
         'anthropic-version': '2023-06-01',
-        'anthropic-beta': 'server-side-fallback-2026-06-01',
         'anthropic-dangerous-direct-browser-access': 'true'
       },
       body: JSON.stringify({
-        model: 'claude-fable-5',
+        model: 'claude-sonnet-5',
         max_tokens: 300,
-        fallbacks: [{ model: 'claude-opus-4-8' }],
         output_config: {
           effort: 'low',
           format: {
