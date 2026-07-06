@@ -1617,10 +1617,13 @@ function logWaist() {
 /* ══════════════════════════════════════════════════════════════════════════════
    MOBILITY MODAL
 ══════════════════════════════════════════════════════════════════════════════ */
-let activeTimer=null, timerSec=0, timerRunning=false, timerDrillIdx=null;
+// Same wall-clock approach as the rest timer (see below): drive off an
+// absolute END timestamp so the countdown stays correct across a screen
+// lock or backgrounded tab, instead of drifting from a per-tick decrement.
+let activeTimer=null, timerSec=0, timerRunning=false, timerDrillIdx=null, timerEnd=0;
 
 function openDrill(idx) {
-  const drill=MOBILITY_DRILLS[idx]; timerDrillIdx=idx; timerSec=drill.timerSec; timerRunning=false;
+  const drill=MOBILITY_DRILLS[idx]; timerDrillIdx=idx; timerSec=drill.timerSec; timerRunning=false; timerEnd=0;
   if (activeTimer) clearInterval(activeTimer);
   document.getElementById('drill-modal-title').textContent=drill.name;
   document.getElementById('drill-modal-reps').textContent=drill.reps;
@@ -1631,27 +1634,31 @@ function openDrill(idx) {
 }
 function closeDrillModal() {
   document.getElementById('drill-modal').classList.remove('open');
-  if (activeTimer) clearInterval(activeTimer); timerRunning=false;
+  if (activeTimer) clearInterval(activeTimer); activeTimer=null; timerRunning=false; timerEnd=0;
 }
 function toggleTimer() {
   if (timerRunning) {
-    clearInterval(activeTimer); timerRunning=false;
+    clearInterval(activeTimer); activeTimer=null; timerRunning=false;
     document.getElementById('timer-toggle').textContent='▶ Resume';
   } else {
     timerRunning=true; document.getElementById('timer-toggle').textContent='⏸ Pause';
-    activeTimer=setInterval(()=>{
-      if (timerSec>0){ timerSec--; updateTimerDisplay(); }
-      else {
-        clearInterval(activeTimer); timerRunning=false;
-        document.getElementById('timer-toggle').textContent='▶ Start';
-        if (navigator.vibrate) navigator.vibrate([200,100,200]);
-        markDrillDone(timerDrillIdx);
-      }
-    },1000);
+    timerEnd = Date.now() + timerSec * 1000;
+    if (activeTimer) clearInterval(activeTimer);
+    activeTimer=setInterval(tickTimer, 250);
   }
 }
+function tickTimer() {
+  if (!timerRunning || timerEnd <= 0) return;
+  timerSec = Math.max(0, Math.round((timerEnd - Date.now()) / 1000));
+  updateTimerDisplay();
+  if (timerSec > 0) return;
+  clearInterval(activeTimer); activeTimer=null; timerRunning=false; timerEnd=0;
+  document.getElementById('timer-toggle').textContent='▶ Start';
+  if (navigator.vibrate) navigator.vibrate([200,100,200]);
+  markDrillDone(timerDrillIdx);
+}
 function resetTimer() {
-  if (activeTimer) clearInterval(activeTimer); timerRunning=false;
+  if (activeTimer) clearInterval(activeTimer); activeTimer=null; timerRunning=false; timerEnd=0;
   timerSec=MOBILITY_DRILLS[timerDrillIdx].timerSec;
   document.getElementById('timer-toggle').textContent='▶ Start';
   updateTimerDisplay();
@@ -1661,6 +1668,8 @@ function updateTimerDisplay() {
   const s=(timerSec%60).toString().padStart(2,'0');
   document.getElementById('timer-display').textContent=`${m}:${s}`;
 }
+// Re-sync instantly when the app comes back to the foreground.
+document.addEventListener('visibilitychange', () => { if (!document.hidden && timerRunning) tickTimer(); });
 function markDrillDone(idx) {
   const d=today();
   if (!state.mobilityLog[d]) state.mobilityLog[d]=[];
