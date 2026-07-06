@@ -723,7 +723,7 @@ function renderLibraryDetail(x) {
     <div class="lib-badges">${chips}</div>
     ${muscles ? `<div class="lib-detail-muscles">💪 ${muscles}</div>` : ''}
     ${steps ? `<div class="lib-detail-steps">${steps}</div>` : ''}
-    <button class="btn block" style="margin-top:16px" onclick="applySwap(${JSON.stringify(x.name)})">Swap this in today</button>
+    <button class="btn block" style="margin-top:16px" onclick="applySwap('${x.name.replace(/'/g,"\\'").replace(/"/g,'&quot;')}')">Swap this in today</button>
     <button class="btn ghost block" style="margin-top:9px" onclick="buildLibraryUI(${swapEi})">← Back to library</button>`;
 }
 
