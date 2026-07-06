@@ -580,6 +580,7 @@ function reopenWorkout(date, session) {
   const sl = ensureSession(date, session); sl.finishedAt = null; save(); renderTrainContent();
 }
 function clearSession(date, session) {
+  if (!confirm('Reset this session? This wipes every logged set — there is no undo.')) return;
   if (!state.workoutLog[date]) state.workoutLog[date] = {};
   state.workoutLog[date][session] = { sets: SESSIONS[session].exercises.map(blankSets), finishedAt: null, names: {}, skipped: {} };
   save(); renderTrainContent();
