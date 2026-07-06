@@ -869,6 +869,7 @@ function renderEatContent() {
         <div style="display:flex;gap:8px;margin-bottom:10px">
           <input class="inp" id="food-kcal" placeholder="kcal" type="number" inputmode="decimal" autocomplete="off">
           <input class="inp" id="food-prot" placeholder="protein (g)" type="number" inputmode="decimal" autocomplete="off">
+          <button class="btn ghost sm" id="food-ai-btn" onclick="aiEstimateFood()" title="AI-estimate kcal &amp; protein from the name">✨ AI</button>
         </div>
         <button class="btn block" onclick="logFood()">+ Add Food</button>
       </div>
@@ -960,6 +961,75 @@ function renderEatContent() {
 }
 
 function setTemplate(t){ state.mealTemplate=t; save(); renderEat(); }
+
+// AI calorie/protein estimate for the typed food name — reuses the same
+// Anthropic key the Coach uses (localStorage 'fitplan_anthropic_key'), sent
+// only to api.anthropic.com. Model: Fable 5, with an Opus 4.8 fallback in
+// case a request is declined.
+async function aiEstimateFood() {
+  const nameEl = document.getElementById('food-name');
+  const name = (nameEl.value || '').trim();
+  if (!name) { alert('Type what you ate first, then tap AI.'); nameEl.focus(); return; }
+  let key = '';
+  try { key = localStorage.getItem('fitplan_anthropic_key') || ''; } catch (e) {}
+  if (!key) { alert('Connect the AI Coach first (Coach tab) — the food estimator uses the same Anthropic key.'); return; }
+
+  const btn = document.getElementById('food-ai-btn');
+  const prevLabel = btn ? btn.textContent : '';
+  if (btn) { btn.disabled = true; btn.textContent = '…'; }
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-api-key': key,
+        'anthropic-version': '2023-06-01',
+        'anthropic-beta': 'server-side-fallback-2026-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-fable-5',
+        max_tokens: 300,
+        fallbacks: [{ model: 'claude-opus-4-8' }],
+        output_config: {
+          effort: 'low',
+          format: {
+            type: 'json_schema',
+            schema: {
+              type: 'object',
+              properties: {
+                kcal: { type: 'integer', description: 'Estimated calories for one typical portion' },
+                protein: { type: 'integer', description: 'Estimated grams of protein for one typical portion' }
+              },
+              required: ['kcal', 'protein'],
+              additionalProperties: false
+            }
+          }
+        },
+        messages: [{
+          role: 'user',
+          content: `Estimate calories and protein for one typical portion of: "${name}". Give your best realistic single-portion estimate, not a range.`
+        }]
+      })
+    });
+    if (!res.ok) {
+      let detail = res.status + '';
+      try { const j = await res.json(); detail = (j.error && j.error.message) || detail; } catch (e) {}
+      throw new Error(detail);
+    }
+    const data = await res.json();
+    if (data.stop_reason === 'refusal') throw new Error('Estimate declined — enter kcal/protein manually.');
+    const textBlock = (data.content || []).find(b => b.type === 'text');
+    if (!textBlock) throw new Error('No estimate returned.');
+    const est = JSON.parse(textBlock.text);
+    document.getElementById('food-kcal').value = est.kcal;
+    document.getElementById('food-prot').value = est.protein;
+  } catch (e) {
+    alert('AI estimate failed: ' + (e.message || e));
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = prevLabel; }
+  }
+}
 
 function logFood() {
   const name=document.getElementById('food-name').value.trim();
