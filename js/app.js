@@ -812,11 +812,12 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden && re
    EAT
 ══════════════════════════════════════════════════════════════════════════════ */
 let eatTab = 'log';
+let eatDate = today(); // which day the Log Food card is editing — defaults to today, navigable
 
 function renderEat() {
   document.getElementById('eat-body').innerHTML = `
     <div class="seg">
-      <button class="sbtn ${eatTab==='log'?'active':''}" onclick="setEatTab('log')">Today</button>
+      <button class="sbtn ${eatTab==='log'?'active':''}" onclick="setEatTab('log')">Log</button>
       <button class="sbtn ${eatTab==='meals'?'active':''}" onclick="setEatTab('meals')">Meal Plans</button>
       <button class="sbtn ${eatTab==='targets'?'active':''}" onclick="setEatTab('targets')">Targets</button>
     </div>
@@ -826,9 +827,26 @@ function renderEat() {
 }
 function setEatTab(t){ eatTab=t; renderEat(); }
 
+// Log Food day navigation — lets you go back and fill in a day you missed.
+function fmtEatDate(d) {
+  const dt = new Date(d + 'T00:00:00');
+  const yest = new Date(); yest.setDate(yest.getDate() - 1);
+  if (d === today()) return 'Today';
+  if (d === yest.toISOString().split('T')[0]) return 'Yesterday';
+  return dt.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
+}
+function shiftEatDate(n) {
+  const dt = new Date(eatDate + 'T00:00:00'); dt.setDate(dt.getDate() + n);
+  const next = dt.toISOString().split('T')[0];
+  if (next > today()) return; // no logging into the future
+  eatDate = next; renderEatContent();
+}
+function setEatDate(v) { if (!v) return; eatDate = v > today() ? today() : v; renderEatContent(); }
+function goEatToday() { eatDate = today(); renderEatContent(); }
+
 function renderEatContent() {
   const el = document.getElementById('eat-content');
-  const d = today(), foods = state.foodLog[d]||[];
+  const d = eatDate, foods = state.foodLog[d]||[];
   const totalKcal = foods.reduce((s,f)=>s+f.kcal,0);
   const totalProt = foods.reduce((s,f)=>s+(f.protein||0),0);
   const t = NUTRITION_TARGETS.trainingDay;
@@ -836,6 +854,14 @@ function renderEatContent() {
 
   if (eatTab==='log') {
     el.innerHTML = `
+      <div class="card">
+        <div style="display:flex;align-items:center;gap:8px">
+          <button class="btn ghost sm" onclick="shiftEatDate(-1)" aria-label="Previous day">‹</button>
+          <input class="inp" type="date" value="${d}" max="${today()}" onchange="setEatDate(this.value)" style="text-align:center;flex:1">
+          <button class="btn ghost sm" onclick="shiftEatDate(1)" ${d>=today()?'disabled':''} aria-label="Next day">›</button>
+        </div>
+        ${d!==today() ? `<button class="btn ghost sm block" style="margin-top:8px" onclick="goEatToday()">Jump to today</button>` : ''}
+      </div>
       <div class="card">
         <div class="mrc">
           ${ringHTML(Math.min(1,totalKcal/t.kcal),'var(--orange)',Math.round(totalKcal/t.kcal*100)+'%','kcal')}
@@ -852,7 +878,7 @@ function renderEatContent() {
         </div>
       </div>
       <div class="card">
-        <div class="lbl">Log Food</div>
+        <div class="lbl">Log Food — ${fmtEatDate(d)}</div>
         ${(rf=>rf.length?`
         <div class="qa-chips">${rf.map((f,i)=>`
           <button class="qa-chip" onclick="quickAddFood(${i})">
@@ -876,7 +902,7 @@ function renderEatContent() {
       </div>
       ${foods.length ? `
       <div class="card">
-        <div class="lbl">${foods.length} Items Logged Today</div>
+        <div class="lbl">${foods.length} Items Logged — ${fmtEatDate(d)}</div>
         ${foods.map((f,i)=>`
           <div class="fe">
             <div class="fen">${f.name}</div>
@@ -1035,7 +1061,7 @@ function logFood() {
   const kcal=parseInt(document.getElementById('food-kcal').value)||0;
   const prot=parseInt(document.getElementById('food-prot').value)||0;
   if (!name||!kcal) return;
-  const d=today();
+  const d=eatDate;
   if (!state.foodLog[d]) state.foodLog[d]=[];
   state.foodLog[d].push({name,kcal,protein:prot});
   save(); renderEat();
@@ -1049,7 +1075,7 @@ const QUICK_DRINKS = [
 ];
 function quickAddDrink(i) {
   const f = QUICK_DRINKS[i]; if (!f) return;
-  const d = today();
+  const d = eatDate;
   if (!state.foodLog[d]) state.foodLog[d] = [];
   state.foodLog[d].push({ name: f.name, kcal: f.kcal, protein: f.protein });
   save(); renderEat();
@@ -1067,7 +1093,7 @@ function recentFoods() {
     if (!seen[k]) seen[k] = { name:f.name.trim(), kcal:f.kcal, protein:f.protein||0, count:0, rec:di };
     seen[k].count++;
   });});
-  const todayNames = new Set((state.foodLog[today()]||[]).map(f=>f.name.trim().toLowerCase()));
+  const todayNames = new Set((state.foodLog[eatDate]||[]).map(f=>f.name.trim().toLowerCase()));
   const drinkNames = new Set(QUICK_DRINKS.map(f=>f.name.toLowerCase()));
   _recentFoods = Object.values(seen)
     .filter(f=>!todayNames.has(f.name.toLowerCase()) && !drinkNames.has(f.name.toLowerCase()))
@@ -1077,13 +1103,13 @@ function recentFoods() {
 }
 function quickAddFood(i) {
   const f=_recentFoods[i]; if (!f) return;
-  const d=today();
+  const d=eatDate;
   if (!state.foodLog[d]) state.foodLog[d]=[];
   state.foodLog[d].push({name:f.name,kcal:f.kcal,protein:f.protein});
   save(); renderEat();
 }
 function deleteFood(idx){
-  const d=today(); state.foodLog[d]?.splice(idx,1); save(); renderEat();
+  const d=eatDate; state.foodLog[d]?.splice(idx,1); save(); renderEat();
 }
 
 /* ══════════════════════════════════════════════════════════════════════════════
