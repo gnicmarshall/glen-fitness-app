@@ -9,6 +9,16 @@ users keep the stale cached version.
 **Git:** the remote Telegram assistant also pushes to this repo — `git pull` first.
 **Firebase project:** `glen-fitness` (not the budget projects).
 
+**Color system (`css/app.css` `:root`):** `--text` (ink) is the primary
+interactive/chrome color — buttons, active tab, focus rings, coach FAB/chat
+bubble. Hue (`--orange`/`--cyan`/`--green`/`--purple`/`--amber`/`--teal`) is
+reserved for data identity only (calories/weight/protein/training/warning/
+mobility) and stays out of primary chrome — don't put a hue back on `.btn` or
+`.tab-btn.active`, that's the "cartoony" look Glen asked to move away from.
+Tinted backgrounds derive from `--x-rgb` companions
+(`rgba(var(--orange-rgb), 0.1)`) rather than hardcoded rgba — add a new
+`-rgb` pair alongside any new hue token.
+
 ## Glen's goal (context for any training/nutrition change)
 Lean "Brad Pitt in Fight Club" look: ~10–12% body fat, visible-but-modest
 muscle, V-taper. Start point (health report): 184cm, ~95.8kg, 23.2% BF.

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'fitplan-v36';
+const CACHE_NAME = 'fitplan-v37';
 const URLS = [
   './',
   './index.html',
