@@ -892,7 +892,10 @@ function renderEatContent() {
             <span class="qa-meta">${f.kcal} kcal</span>
           </button>`).join('')}
         </div>
-        <input class="inp" id="food-name" placeholder="Food or meal name" type="text" autocomplete="off" spellcheck="false" style="width:100%;margin-bottom:8px">
+        <div style="display:flex;gap:8px;margin-bottom:8px">
+          <input class="inp" id="food-name" placeholder="Food or meal name" type="text" autocomplete="off" spellcheck="false" style="flex:1">
+          <button class="btn ghost sm" id="food-photo-btn" onclick="aiEstimateFoodPhoto()" title="Estimate from a photo">📷</button>
+        </div>
         <div style="display:flex;gap:8px;margin-bottom:10px">
           <input class="inp" id="food-kcal" placeholder="kcal" type="number" inputmode="decimal" autocomplete="off">
           <input class="inp" id="food-prot" placeholder="protein (g)" type="number" inputmode="decimal" autocomplete="off">
@@ -989,68 +992,135 @@ function renderEatContent() {
 
 function setTemplate(t){ state.mealTemplate=t; save(); renderEat(); }
 
-// AI calorie/protein estimate for the typed food name — reuses the same
+// Shared call for the AI food estimator (text or photo) — reuses the same
 // Anthropic key the Coach uses (localStorage 'fitplan_anthropic_key'), sent
-// only to api.anthropic.com. Model: Fable 5, with an Opus 4.8 fallback in
-// case a request is declined.
+// only to api.anthropic.com. Model: Sonnet 5. Returns the parsed JSON object
+// matching schemaProps, or throws.
+async function estimateFoodViaClaude(content, schemaProps, required) {
+  let key = '';
+  try { key = localStorage.getItem('fitplan_anthropic_key') || ''; } catch (e) {}
+  if (!key) { alert('Connect the AI Coach first (Coach tab) — the food estimator uses the same Anthropic key.'); return null; }
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      'x-api-key': key,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true'
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-5',
+      max_tokens: 500,
+      output_config: {
+        effort: 'medium',
+        format: { type: 'json_schema', schema: { type: 'object', properties: schemaProps, required, additionalProperties: false } }
+      },
+      messages: [{ role: 'user', content }]
+    })
+  });
+  if (!res.ok) {
+    let detail = res.status + '';
+    try { const j = await res.json(); detail = (j.error && j.error.message) || detail; } catch (e) {}
+    throw new Error(detail);
+  }
+  const data = await res.json();
+  if (data.stop_reason === 'refusal') throw new Error('Estimate declined — enter values manually.');
+  const textBlock = (data.content || []).find(b => b.type === 'text');
+  if (!textBlock) throw new Error('No estimate returned.');
+  return JSON.parse(textBlock.text);
+}
+
 async function aiEstimateFood() {
   const nameEl = document.getElementById('food-name');
   const name = (nameEl.value || '').trim();
   if (!name) { alert('Type what you ate first, then tap AI.'); nameEl.focus(); return; }
-  let key = '';
-  try { key = localStorage.getItem('fitplan_anthropic_key') || ''; } catch (e) {}
-  if (!key) { alert('Connect the AI Coach first (Coach tab) — the food estimator uses the same Anthropic key.'); return; }
-
   const btn = document.getElementById('food-ai-btn');
   const prevLabel = btn ? btn.textContent : '';
   if (btn) { btn.disabled = true; btn.textContent = '…'; }
   try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        'x-api-key': key,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true'
+    const est = await estimateFoodViaClaude(
+      `Estimate calories and protein for: "${name}". If a quantity, weight, or size is given, use it exactly — don't round it away. Otherwise assume one typical single adult portion. If this looks like a specific branded or restaurant item you know the published nutrition info for, use that instead of guessing. Give your best realistic point estimate, not a range.`,
+      {
+        kcal: { type: 'integer', description: 'Estimated calories for the portion described' },
+        protein: { type: 'integer', description: 'Estimated grams of protein for the portion described' }
       },
-      body: JSON.stringify({
-        model: 'claude-sonnet-5',
-        max_tokens: 300,
-        output_config: {
-          effort: 'low',
-          format: {
-            type: 'json_schema',
-            schema: {
-              type: 'object',
-              properties: {
-                kcal: { type: 'integer', description: 'Estimated calories for one typical portion' },
-                protein: { type: 'integer', description: 'Estimated grams of protein for one typical portion' }
-              },
-              required: ['kcal', 'protein'],
-              additionalProperties: false
-            }
-          }
-        },
-        messages: [{
-          role: 'user',
-          content: `Estimate calories and protein for one typical portion of: "${name}". Give your best realistic single-portion estimate, not a range.`
-        }]
-      })
-    });
-    if (!res.ok) {
-      let detail = res.status + '';
-      try { const j = await res.json(); detail = (j.error && j.error.message) || detail; } catch (e) {}
-      throw new Error(detail);
-    }
-    const data = await res.json();
-    if (data.stop_reason === 'refusal') throw new Error('Estimate declined — enter kcal/protein manually.');
-    const textBlock = (data.content || []).find(b => b.type === 'text');
-    if (!textBlock) throw new Error('No estimate returned.');
-    const est = JSON.parse(textBlock.text);
+      ['kcal', 'protein']
+    );
+    if (!est) return;
     document.getElementById('food-kcal').value = est.kcal;
     document.getElementById('food-prot').value = est.protein;
   } catch (e) {
     alert('AI estimate failed: ' + (e.message || e));
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = prevLabel; }
+  }
+}
+
+// Downscale to a max dimension before sending — camera photos are often
+// several MB, and vision tokens (and upload time) scale with resolution.
+function resizeImageToBase64(file, maxDim) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        let { width, height } = img;
+        if (width > maxDim || height > maxDim) {
+          const scale = maxDim / Math.max(width, height);
+          width = Math.round(width * scale); height = Math.round(height * scale);
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width; canvas.height = height;
+        canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+        resolve({ base64: canvas.toDataURL('image/jpeg', 0.82).split(',')[1], mediaType: 'image/jpeg' });
+      };
+      img.onerror = () => reject(new Error('Could not read that photo.'));
+      img.src = reader.result;
+    };
+    reader.onerror = () => reject(new Error('Could not read that photo.'));
+    reader.readAsDataURL(file);
+  });
+}
+
+function aiEstimateFoodPhoto() {
+  let input = document.getElementById('food-photo-input');
+  if (!input) {
+    input = document.createElement('input');
+    input.type = 'file'; input.accept = 'image/*'; input.capture = 'environment';
+    input.id = 'food-photo-input'; input.style.display = 'none';
+    document.body.appendChild(input);
+    input.addEventListener('change', handleFoodPhoto);
+  }
+  input.value = '';
+  input.click();
+}
+
+async function handleFoodPhoto(e) {
+  const file = e.target.files && e.target.files[0];
+  if (!file) return;
+  const btn = document.getElementById('food-photo-btn');
+  const prevLabel = btn ? btn.textContent : '';
+  if (btn) { btn.disabled = true; btn.textContent = '…'; }
+  try {
+    const { base64, mediaType } = await resizeImageToBase64(file, 1200);
+    const est = await estimateFoodViaClaude(
+      [
+        { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64 } },
+        { type: 'text', text: 'Identify the food/meal in this photo and estimate calories and protein for the portion actually shown (judge portion size from the plate/container/hand in frame if visible). If it looks like a specific packaged or branded item you recognize, use its published nutrition info instead of guessing.' }
+      ],
+      {
+        name: { type: 'string', description: 'Short name of the food/meal shown' },
+        kcal: { type: 'integer', description: 'Estimated calories for the portion shown' },
+        protein: { type: 'integer', description: 'Estimated grams of protein for the portion shown' }
+      },
+      ['name', 'kcal', 'protein']
+    );
+    if (!est) return;
+    document.getElementById('food-name').value = est.name;
+    document.getElementById('food-kcal').value = est.kcal;
+    document.getElementById('food-prot').value = est.protein;
+  } catch (err) {
+    alert('Photo estimate failed: ' + (err.message || err));
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = prevLabel; }
   }

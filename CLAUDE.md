@@ -48,11 +48,15 @@ health constraints. Default model `claude-sonnet-4-6`, prompt caching on
 (~1–2p/question). If models are deprecated, update the default here and in
 `js/coach.js` together.
 
-## AI food estimate (`js/app.js` → `aiEstimateFood`)
-"✨ AI" button on the Fuel/Eat tab's Log Food form. Sends the typed food name
-to `claude-sonnet-5` (Glen's choice — accurate and far cheaper than Fable 5
-for this simple estimation task; the Coach stays on `claude-sonnet-4-6`,
-these two are intentionally independent) using the same
-`fitplan_anthropic_key` as the Coach, requests strict `{kcal, protein}` via
-`output_config.format` (JSON schema, no tool use needed), and fills the kcal/
-protein inputs. Small, one-shot call — `output_config.effort: 'low'`.
+## AI food estimate (`js/app.js` → `estimateFoodViaClaude`)
+Two entry points on the Fuel/Eat tab's Log Food form, both calling the shared
+`estimateFoodViaClaude` helper: "✨ AI" (`aiEstimateFood`, text → kcal/protein)
+and "📷" (`aiEstimateFoodPhoto` → `handleFoodPhoto`, camera/photo → name +
+kcal/protein, via `resizeImageToBase64` capped at 1200px to keep upload size
+and vision tokens down). Model `claude-sonnet-5` (Glen's choice — accurate
+and far cheaper than Fable 5 for this task; the Coach stays on
+`claude-sonnet-4-6`, these two are intentionally independent), using the same
+`fitplan_anthropic_key` as the Coach, `output_config.format` (JSON schema, no
+tool use needed) for strict numeric fields, `output_config.effort: 'medium'`
+(bumped from 'low' for accuracy — this is inherently an estimate, not a
+lookup, since there's no nutrition-database tool call involved).
