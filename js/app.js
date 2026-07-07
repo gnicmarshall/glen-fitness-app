@@ -828,16 +828,23 @@ function renderEat() {
 function setEatTab(t){ eatTab=t; renderEat(); }
 
 // Log Food day navigation — lets you go back and fill in a day you missed.
+// Pure calendar-date arithmetic on 'YYYY-MM-DD' strings, anchored in UTC
+// throughout (never mixed with local-time parsing) — otherwise a positive
+// UTC offset (e.g. UK on BST) makes local-midnight-to-UTC conversion skip
+// a day when shifting.
+function addDaysISO(iso, n) {
+  const [y, m, dd] = iso.split('-').map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, dd));
+  dt.setUTCDate(dt.getUTCDate() + n);
+  return dt.toISOString().split('T')[0];
+}
 function fmtEatDate(d) {
-  const dt = new Date(d + 'T00:00:00');
-  const yest = new Date(); yest.setDate(yest.getDate() - 1);
   if (d === today()) return 'Today';
-  if (d === yest.toISOString().split('T')[0]) return 'Yesterday';
-  return dt.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
+  if (d === addDaysISO(today(), -1)) return 'Yesterday';
+  return new Date(d + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
 }
 function shiftEatDate(n) {
-  const dt = new Date(eatDate + 'T00:00:00'); dt.setDate(dt.getDate() + n);
-  const next = dt.toISOString().split('T')[0];
+  const next = addDaysISO(eatDate, n);
   if (next > today()) return; // no logging into the future
   eatDate = next; renderEatContent();
 }
