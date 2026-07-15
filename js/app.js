@@ -88,8 +88,11 @@ function volOf(arr) { return arr.reduce((m, s) => m + s.w * s.r, 0); }
 
 // Every logged performance of one program slot (session + exercise index),
 // newest first. Keyed by the fixed slot so it survives day-to-day; carries
-// that day's display name so swaps still read correctly.
-function exerciseHistory(session, ei, includeToday) {
+// that day's display name so swaps still read correctly. When a slot is a
+// combo (e.g. "Lat Pulldown / Assisted Chin-up") the weight scale differs
+// between variants, so pass matchName to only return performances logged
+// under that same display name.
+function exerciseHistory(session, ei, includeToday, matchName) {
   const td = today();
   return Object.keys(state.workoutLog)
     .filter(d => includeToday || d < td)
@@ -99,13 +102,16 @@ function exerciseHistory(session, ei, includeToday) {
       const done = doneSetsFor(sd, ei);
       if (!done.length) return null;
       const name = (sd.names && sd.names[ei]) || SESSIONS[session].exercises[ei].name;
+      if (matchName && name !== matchName) return null;
       return { date: d, sets: done, name, top: topWeight(done), vol: volOf(done) };
     })
     .filter(Boolean);
 }
 // Most recent prior performance (powers the inline "last time" hint).
-function lastPerformance(session, ei) {
-  const h = exerciseHistory(session, ei, false);
+// matchName restricts it to the same variant of a combo slot, so e.g. an
+// assisted-chin-up attempt doesn't show a lat-pulldown "last time".
+function lastPerformance(session, ei, matchName) {
+  const h = exerciseHistory(session, ei, false, matchName);
   return h.length ? h[0] : null;
 }
 
@@ -380,7 +386,7 @@ function renderTrainContent() {
         const exDone = sets.length>0 && sets.every(s=>s.done);
         const q = encodeURIComponent(dispName.split('/')[0].trim()+' proper form technique');
         const swapped = slog.names && slog.names[ei];
-        const last = lastPerformance(activeSession, ei);
+        const last = lastPerformance(activeSession, ei, dispName);
         const lastHtml = last ? `
           <div class="lasttime" onclick="openExHist('${activeSession}',${ei})">
             <span class="lt-lbl">Last · ${dayName(last.date)} ${fmtFull(last.date)}</span>
@@ -729,9 +735,9 @@ function renderLibraryDetail(x) {
 
 /* ─── Per-exercise history + progression chart (modal) ────────────────────────── */
 function openExHist(session, ei) {
-  const hist = exerciseHistory(session, ei, true); // newest first, incl. today
   const sl = ensureSession(today(), session);
   const name = (sl.names && sl.names[ei]) || SESSIONS[session].exercises[ei].name;
+  const hist = exerciseHistory(session, ei, true, name); // newest first, incl. today, same variant only
   const body = document.getElementById('exhist-body');
 
   if (!hist.length) {
